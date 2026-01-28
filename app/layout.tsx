@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import { Providers } from "./provider";
+import UnderDevelopmentBanner from "@/components/UnderDevelopmentBanner";
 
 export const metadata: Metadata = {
   title: "Financial Advice",
@@ -28,6 +29,7 @@ export default function RootLayout({
       </head>
       {/**/}
       <body className=" bg-[#F8F6EC]  flex flex-col justify-between ">
+        <UnderDevelopmentBanner />
         <Providers>{children}</Providers>
       </body>
     </html>
