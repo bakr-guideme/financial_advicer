@@ -287,7 +287,7 @@ export default function BudgetBuilder() {
     for (const code in tbData.accountMap) {
       const a = tbData.accountMap[code];
       const ass = assumptions[code];
-      rows.push([code, a.name, a.atype || '', a.actual ?? 0, ass?.method === 'manual' ? 'Manual' : `${ass?.pct ?? 0}%`, budget[code] ?? 0, ass?.aiReason ?? '']);
+      rows.push([code, a.name,String(a.atype || '') , a.actual ?? 0, ass?.method === 'manual' ? 'Manual' : `${ass?.pct ?? 0}%`, budget[code] ?? 0, ass?.aiReason ?? '']);
     }
     const ws = XLSX.utils.aoa_to_sheet(rows);
     const wb = XLSX.utils.book_new();
