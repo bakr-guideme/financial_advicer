@@ -426,16 +426,19 @@ async function generateExcel(
     r.getCell(5).font = fontSpec(false, 10)
     r.getCell(5).fill = solidFill(C.yellow)
     r.getCell(5).alignment = alignSpec('center')
+    r.getCell(5).protection = { locked: false }
     // Value
     r.getCell(6).font = fontSpec(false, 10)
     r.getCell(6).fill = solidFill(C.yellow)
     r.getCell(6).numFmt = numFmt2
+    r.getCell(6).protection = { locked: false }
     // FY Actual
     r.getCell(7).font = fontSpec(false, 10)
     r.getCell(7).fill = solidFill(C.gray)
     r.getCell(7).numFmt = numFmt
     // Notes
     r.getCell(8).font = fontSpec(false, 9)
+    r.getCell(8).protection = { locked: false }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -527,6 +530,7 @@ async function generateExcel(
           cell.fill = solidFill(C.gray)
         } else if (isBudgetMonth) {
           cell.fill = solidFill(C.yellow)
+          cell.protection = { locked: false }
         } else if (isTotalCol || isVarPct) {
           cell.fill = solidFill(C.paleBlue)
         }
@@ -779,7 +783,7 @@ async function generateExcel(
         const isVarPct = c === 30
 
         if (isActualMonth) cell.fill = solidFill(C.gray)
-        else if (isBudgetMonth) cell.fill = solidFill(C.yellow)
+        else if (isBudgetMonth) { cell.fill = solidFill(C.yellow); cell.protection = { locked: false } }
         else if (isTotalCol || isVarPct) cell.fill = solidFill(C.paleBlue)
 
         cell.font = fontSpec(false, 10)
@@ -789,11 +793,25 @@ async function generateExcel(
     }
   }
 
-  // Tax row (yellow)
+  // Tax row (editable budget columns)
   const taxRowData = [null, 'Income tax paid — Budget (enter quarterly PAYG)', ...zeros28()]
   taxRow = addPLRow(taxRowData)
   wsPL.getCell(taxRow, 2).fill = solidFill(C.brightYellow)
   wsPL.getCell(taxRow, 2).font = fontSpec(false, 10)
+  // Style data cells: gray actuals, yellow budget (unlocked), paleBlue totals
+  for (let c = 3; c <= TOTAL_COLS; c++) {
+    const cell = wsPL.getCell(taxRow, c)
+    const isActualMonth = c >= 3 && c <= 26 && (c % 2 === 1)
+    const isBudgetMonth = c >= 3 && c <= 26 && (c % 2 === 0)
+    const isTotalCol = c >= 27 && c <= 29
+    const isVarPct = c === 30
+    if (isActualMonth) cell.fill = solidFill(C.gray)
+    else if (isBudgetMonth) { cell.fill = solidFill(C.yellow); cell.protection = { locked: false } }
+    else if (isTotalCol || isVarPct) cell.fill = solidFill(C.paleBlue)
+    cell.font = fontSpec(false, 10)
+    if (c !== 30) cell.numFmt = numFmt
+    else cell.numFmt = pctFmt
+  }
 
   // Net Financing CF
   const netFinData: any[] = [null, 'NET FINANCING / INVESTING CASH FLOW']
@@ -903,6 +921,7 @@ async function generateExcel(
   wsPL.getCell(taxRateRow, 28).fill = solidFill(C.yellow)
   wsPL.getCell(taxRateRow, 28).numFmt = '0.0%'
   wsPL.getCell(taxRateRow, 28).font = fontSpec(true, 10)
+  wsPL.getCell(taxRateRow, 28).protection = { locked: false }
 
   // Estimated annual tax row
   const estTaxData: any[] = [null, 'Estimated Annual Tax Payable']
@@ -1038,6 +1057,7 @@ async function generateExcel(
   wsCov.getCell(cConfirm, 4).font = fontSpec(true, 11)
   wsCov.getCell(cConfirm, 4).fill = solidFill(C.brightYellow)
   wsCov.getCell(cConfirm, 4).numFmt = numFmt
+  wsCov.getCell(cConfirm, 4).protection = { locked: false }
 
   // Password note
   addCov([])
@@ -1149,6 +1169,17 @@ async function generateExcel(
     ws.orderNo = (wb as any)._worksheets.length
     ;(wb as any)._worksheets.push(ws)
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SHEET PROTECTION — only yellow (unlocked) cells are editable
+  // ─────────────────────────────────────────────────────────────────────────
+  // No password so users can unprotect via Review → Unprotect Sheet if needed
+  const protectOpts = { selectLockedCells: true, selectUnlockedCells: true }
+  await wsCov.protect('', protectOpts)
+  await wsA.protect('', protectOpts)
+  await wsPL.protect('', protectOpts)
+  await wsR.protect('', protectOpts)
+  await wsGL.protect('', protectOpts)
 
   // ─────────────────────────────────────────────────────────────────────────
   // WRITE BUFFER
