@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ export default function BudgetBuilder() {
   const [activeTab, setActiveTab] = useState('pl');
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
-  const [anomalyLoading, setAnomalyLoading] = useState(false);
+  
   const [aiError, setAiError] = useState('');
   const [tbFile, setTbFile] = useState<File | null>(null);
   const [glFile, setGlFile] = useState<File | null>(null);
@@ -314,7 +314,7 @@ export default function BudgetBuilder() {
                 { label: 'Trial Balance', file: tbFile, onFile: setTbFile, icon: '📊', note: 'MYOB → Reports → Trial Balance → Export' },
                 { label: 'General Ledger', file: glFile, onFile: setGlFile, icon: '📋', note: 'MYOB → Reports → General Ledger → Export' },
               ].map(({ label, file, onFile, icon, note }) => {
-                const ref = { current: null } as React.MutableRefObject<HTMLInputElement | null>;
+                
                 return (
                   <div key={label} onClick={() => (document.getElementById(`upload-${label}`) as HTMLInputElement)?.click()}
                     style={{ border: `2px dashed ${file ? '#C9A227' : '#1E2D45'}`, borderRadius: 10, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', backgroundColor: file ? 'rgba(201,162,39,0.05)' : 'transparent', transition: 'all 0.2s' }}>
