@@ -766,14 +766,22 @@ async function generateExcel(
   for (let j = 1; j <= 3; j++) {
     const ocRn = addPLRow([null, `Other cash item ${j} ( - for cash out)`, ...zeros28()])
     finRows.push(ocRn)
-    // Style as fully editable (yellow) row
+    // Style: actuals gray (read-only), budget yellow (editable), totals paleBlue
     const ocRow = wsPL.getRow(ocRn)
     for (let c = 1; c <= TOTAL_COLS; c++) {
       const cell = ocRow.getCell(c)
       if (c === 1) { cell.font = fontSpec(false, 9) }
       else if (c === 2) { cell.font = fontSpec(false, 10) }
       else {
-        cell.fill = solidFill(C.yellow)
+        const isActualMonth = c >= 3 && c <= 26 && (c % 2 === 1)
+        const isBudgetMonth = c >= 3 && c <= 26 && (c % 2 === 0)
+        const isTotalCol = c >= 27 && c <= 29
+        const isVarPct = c === 30
+
+        if (isActualMonth) cell.fill = solidFill(C.gray)
+        else if (isBudgetMonth) cell.fill = solidFill(C.yellow)
+        else if (isTotalCol || isVarPct) cell.fill = solidFill(C.paleBlue)
+
         cell.font = fontSpec(false, 10)
         if (c !== 30) cell.numFmt = numFmt
         else cell.numFmt = pctFmt
@@ -1122,8 +1130,8 @@ async function generateExcel(
   // ─────────────────────────────────────────────────────────────────────────
   // REORDER SHEETS
   // ─────────────────────────────────────────────────────────────────────────
-  // Desired: Cover, P&L and Cash Flow, Assumptions, Reconciliation, GL Data
-  const desiredOrder = ['Cover', 'P&L and Cash Flow', 'Assumptions', 'Reconciliation', 'GL Data']
+  // Desired: Cover, Assumptions, P&L and Cash Flow, Reconciliation, GL Data
+  const desiredOrder = ['Cover', 'Assumptions', 'P&L and Cash Flow', 'Reconciliation', 'GL Data']
   // ExcelJS maintains order of addWorksheet calls. We created:
   // GL Data, Assumptions, P&L, Cover, Reconciliation
   // Need to reorder. ExcelJS worksheet orderNo can be set via _worksheets array
