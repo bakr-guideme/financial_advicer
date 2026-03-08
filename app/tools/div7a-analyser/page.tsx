@@ -718,7 +718,7 @@ export default function Div7AAnalyser() {
                     {[
                       ['Super pension (tax-free)', () => $f(inp.superPension), false, '#F9F9F9'],
                       ['Dividend (gross)', (s: any) => $f(s.div)],
-                      ['Net tax / (refund)', (s: any) => s.netTaxAmt < 0 ? `(${$f(-s.netTaxAmt)}) ★ REFUND` : $f(s.netTaxAmt), false, s => s.netTaxAmt < 0 ? '#E2EFDA' : '#F9F9F9'],
+                      ['Net tax / (refund)', (s: any) => s.netTaxAmt < 0 ? `(${$f(-s.netTaxAmt)}) ★ REFUND` : $f(s.netTaxAmt), false, '#F9F9F9'],
                       ['Age pension', (s: any) => $f(s.pension)],
                       ['★★ Total after-tax income', (s: any) => $f(s.totalAfterTax), true, '#E2EFDA'],
                     ].map(([label, fn, bold, bg]: any, ri) => (
