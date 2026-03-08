@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
@@ -200,13 +200,15 @@ const TABS=['Trust & Income','Beneficiaries','Optimal Distribution','Streaming',
 // ── MINUTES GENERATOR ─────────────────────────────────────────────────────────
 function genMinutes(inp:TrustInputs,benefs:Beneficiary[],calc:ReturnType<typeof compute>):string {
   const yr=inp.financialYear
-  const dists=calc.dists||{}
-  const hasCG=Object.values(calc.cgStream||{}).some(v=>v>0)
+  const dists:Record<string,number>=calc.dists||{}
+  const cgStream:Record<string,number>=calc.cgStream||{}
+  const fkStream:Record<string,number>=calc.fkStream||{}
+  const hasCG=Object.values(calc.cgStream||{}).some((v:any)=>v>0)
   const hasFk=inp.frankingCredits>0
   let n=1
   const distRows=benefs.filter(b=>(dists[b.id]||0)>0).map(b=>`    ${b.name.padEnd(35)} ${$f(dists[b.id])}`).join('\n')
-  const cgRows=benefs.filter(b=>(calc.cgStream?.[b.id]||0)>0).map(b=>`    ${b.name.padEnd(35)} ${$f(calc.cgStream![b.id])}`).join('\n')
-  const fkRows=benefs.filter(b=>(calc.fkStream?.[b.id]||0)>0).map(b=>`    ${b.name.padEnd(35)} ${$f(calc.fkStream![b.id])}`).join('\n')
+  const cgRows=benefs.filter(b=>(cgStream[b.id]||0)>0).map(b=>`    ${b.name.padEnd(35)} ${$f(cgStream[b.id])}`).join('\n')
+  const fkRows=benefs.filter(b=>(fkStream[b.id]||0)>0).map(b=>`    ${b.name.padEnd(35)} ${$f(fkStream[b.id])}`).join('\n')
   return `MINUTES OF A MEETING OF THE TRUSTEE
 OF THE ${inp.trustName.toUpperCase()}
 ${inp.abn?'ABN: '+inp.abn:'ABN: [INSERT]'}
@@ -358,8 +360,8 @@ Prepared: BAKR — Consultants for Accountants Pty Ltd
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function TrustDistribution(){
   const [tab,setTab]=useState(0)
-  const [inp,setInp]=useState<TrustInputs>(DEF_TRUST)
-  const [benefs,setBenefs]=useState<Beneficiary[]>(DEF_BENEFS)
+  const [inp,setInp]=useState(DEF_TRUST as TrustInputs)
+  const [benefs,setBenefs]=useState(DEF_BENEFS as Beneficiary[])
   const calc=useMemo(()=>compute(inp,benefs),[inp,benefs])
   const setT=useCallback(<K extends keyof TrustInputs>(k:K,v:TrustInputs[K])=>setInp(p=>({...p,[k]:v})),[])
   const addB=()=>setBenefs(p=>[...p,{id:Date.now().toString(),name:'New Beneficiary',type:'adult_individual',age:30,otherIncome:0,companyTaxRate:0.25,manualAllocation:0}])
@@ -516,8 +518,8 @@ export default function TrustDistribution(){
                   </thead>
                   <tbody>
                     {benefs.map((b,i)=>{
-                      const d=calc.dists?.[b.id]||0
-                      const tax=calc.taxBy?.[b.id]||0
+                      const d=(calc.dists as Record<string,number>)[b.id]||0
+                      const tax=(calc.taxBy as Record<string,number>)[b.id]||0
                       return(
                         <tr key={b.id} className={i%2===0?'bg-white':'bg-gray-50'}>
                           <td className="px-3 py-2 font-medium">{b.name}</td>
@@ -565,8 +567,8 @@ export default function TrustDistribution(){
                     </tr></thead>
                     <tbody>
                       {benefs.map((b,i)=>{
-                        const d=calc.dists?.[b.id]||0
-                        const cg=calc.cgStream?.[b.id]||0
+                        const d=(calc.dists as Record<string,number>)[b.id]||0
+                        const cg=(calc.cgStream as Record<string,number>)[b.id]||0
                         const eligible=b.type==='adult_individual'||b.type==='smsf'
                         const disc=b.type==='smsf'?1/3:0.5
                         const cgAD=eligible?cg*(1-disc):cg
@@ -599,8 +601,8 @@ export default function TrustDistribution(){
                     </tr></thead>
                     <tbody>
                       {benefs.map((b,i)=>{
-                        const d=calc.dists?.[b.id]||0
-                        const fc=calc.fkStream?.[b.id]||0
+                        const d=(calc.dists as Record<string,number>)[b.id]||0
+                        const fc=(calc.fkStream as Record<string,number>)[b.id]||0
                         const grossed=d+fc
                         const taxOnGrossed=b.type==='adult_individual'?(netTax(b.otherIncome+grossed)-netTax(b.otherIncome)):grossed*emr(b)
                         const netTaxFinal=taxOnGrossed-fc
