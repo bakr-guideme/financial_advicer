@@ -13,8 +13,6 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 const businessTools = [
   { name: "Division 7A Analyser", href: "/tools/div7a-analyser", desc: "Loan strategy & retirement planning", icon: "⚖️" },
   { name: "Budget Builder", href: "/tools/budget-builder-myob", desc: "MYOB export to formatted budget", icon: "📊" },
-  { name: "Trust Distribution Analyser", href: "/tools/trust-distribution", desc: "CGT streaming, Div 6AA, s100A, minutes", icon: "⚖️" },
-  { name: "Super Contributions Optimiser", href: "/tools/super-optimiser", desc: "CC, NCC, spouse, downsizer, CGT cap", icon: "🏦" },
 ];
 
 const Herosection = () => {
