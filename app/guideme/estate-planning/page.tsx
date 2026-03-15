@@ -252,7 +252,7 @@ const QS = [
 ];
 
 // ─── BRANCHING ENGINE ───────────────────────────────────────
-function evalSI(expr, a) {
+function evalSI(expr: string | null, a: Record<string, any>) {
   if (!expr) return true;
   return expr.split("||").map(s=>s.trim()).some(group =>
     group.split("&&").map(s=>s.trim()).every(cond => {
@@ -266,12 +266,12 @@ function evalSI(expr, a) {
     })
   );
 }
-function getVis(a) { return QS.filter(q => evalSI(q.si, a)); }
-function getTF(a) {
-  const s = new Set();
+function getVis(a: Record<string, any>) { return QS.filter(q => evalSI(q.si, a)); }
+function getTF(a: Record<string, any>) {
+  const s = new Set<string>();
   QS.forEach(q => {
     const ans = a[q.v]; if (ans === undefined) return;
-    if (Array.isArray(ans)) ans.forEach(v => { const o = q.o.find(x=>x.v===v); if (o) o.f.forEach(f=>s.add(f)); });
+    if (Array.isArray(ans)) ans.forEach((v: string) => { const o = q.o.find(x=>x.v===v); if (o) o.f.forEach(f=>s.add(f)); });
     else { const o = q.o.find(x=>x.v===ans); if (o) o.f.forEach(f=>s.add(f)); }
   });
   return [...s];
@@ -286,8 +286,8 @@ const TC = {
 const CAT = { superannuation:"Superannuation", trusts:"Trusts", wills:"Wills & Estate Planning", property:"Property", companies:"Companies & Directors", general:"General", insurance:"Insurance", tax:"Tax & CGT", centrelink:"Centrelink & Pensions", business:"Business" };
 
 // ─── RESULT CARD ────────────────────────────────────────────
-function Card({ doc, tc, expanded, onToggle }) {
-  const [ds, setDs] = useState(null);
+function Card({ doc, tc, expanded, onToggle }: { doc: any; tc: any; expanded: boolean; onToggle: () => void }) {
+  const [ds, setDs] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (expanded && !ds && doc.variantUrls?.DS?.md) {
@@ -331,10 +331,10 @@ function Card({ doc, tc, expanded, onToggle }) {
 }
 
 // ─── TIER SECTION ───────────────────────────────────────────
-function Tier({ tier, docs, open }) {
-  const c = TC[tier];
+function Tier({ tier, docs, open }: { tier: string; docs: any[]; open: boolean }) {
+  const c = TC[tier as keyof typeof TC];
   const [collapsed, setCollapsed] = useState(!open);
-  const [exp, setExp] = useState(null);
+  const [exp, setExp] = useState<string | null>(null);
   if (!c || !docs?.length) return null;
   return (
     <div style={{marginBottom:28}}>
@@ -354,7 +354,7 @@ function Tier({ tier, docs, open }) {
 }
 
 // ─── OPUS SYNTHESIS ─────────────────────────────────────────
-function Synthesis({ results, answers }) {
+function Synthesis({ results, answers }: { results: any; answers: Record<string, any> }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const ran = useRef(false);
@@ -384,13 +384,13 @@ function Synthesis({ results, answers }) {
 // ═══════════════════════════════════════════════════════════════
 export default function EstatePlanningQuiz() {
   const [phase, setPhase] = useState("welcome");
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [qIdx, setQIdx] = useState(0);
   const [animKey, setAnimKey] = useState(0);
-  const [hovered, setHovered] = useState(null);
-  const [triggerFacts, setTriggerFacts] = useState([]);
-  const [results, setResults] = useState(null);
-  const topRef = useRef(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [triggerFacts, setTriggerFacts] = useState<string[]>([]);
+  const [results, setResults] = useState<any>(null);
+  const topRef = useRef<HTMLDivElement | null>(null);
   const guideNum = useRef(Math.floor(10000000 + Math.random() * 90000000).toString());
 
   const visQ = useMemo(() => getVis(answers), [answers]);
@@ -407,17 +407,17 @@ export default function EstatePlanningQuiz() {
 
   const goBack = useCallback(() => { if(qIdx>0){setQIdx(i=>i-1);setAnimKey(k=>k+1);scroll();} }, [qIdx, scroll]);
 
-  const selSingle = useCallback((variable, value) => {
-    setAnswers(p => ({...p, [variable]: value}));
+  const selSingle = useCallback((variable: string, value: string) => {
+    setAnswers((p: Record<string, any>) => ({...p, [variable]: value}));
     setTimeout(() => goNext(), 280);
   }, [goNext]);
 
-  const togMulti = useCallback((variable, value, maxSel) => {
-    setAnswers(p => {
+  const togMulti = useCallback((variable: string, value: string, maxSel?: number) => {
+    setAnswers((p: any) => {
       const cur = p[variable] || [];
       if (value === "none") return {...p, [variable]: ["none"]};
-      let next = cur.filter(v => v !== "none");
-      if (next.includes(value)) next = next.filter(v => v !== value);
+      let next = cur.filter((v: string) => v !== "none");
+      if (next.includes(value)) next = next.filter((v: string) => v !== value);
       else { if (maxSel && next.length >= maxSel) return p; next = [...next, value]; }
       return {...p, [variable]: next};
     });
