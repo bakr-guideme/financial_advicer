@@ -283,7 +283,7 @@ const TC = {
   important: { label:"Important to Understand", desc:"These topics are relevant to your circumstances and worth reading carefully.", color:"#D97706", bg:"#FFFBEB", border:"#FDE68A", icon:"🟡" },
   worth_exploring: { label:"Worth Exploring", desc:"These may be relevant depending on how your situation develops.", color:"#2563EB", bg:"#EFF6FF", border:"#BFDBFE", icon:"🔵" }
 };
-const CAT = { superannuation:"Superannuation", trusts:"Trusts", wills:"Wills & Estate Planning", property:"Property", companies:"Companies & Directors", general:"General", insurance:"Insurance", tax:"Tax & CGT", centrelink:"Centrelink & Pensions", business:"Business" };
+const CAT: Record<string, string> = { superannuation:"Superannuation", trusts:"Trusts", wills:"Wills & Estate Planning", property:"Property", companies:"Companies & Directors", general:"General", insurance:"Insurance", tax:"Tax & CGT", centrelink:"Centrelink & Pensions", business:"Business" };
 
 // ─── RESULT CARD ────────────────────────────────────────────
 function Card({ doc, tc, expanded, onToggle }: { doc: any; tc: any; expanded: boolean; onToggle: () => void }) {
