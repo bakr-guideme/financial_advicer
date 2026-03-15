@@ -367,7 +367,7 @@ function Synthesis({ results, answers }: { results: any; answers: Record<string,
     const anSum = Object.entries(answers).filter(([,v])=>v!=null).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(", "):v}`).join("\n");
     fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`You are a senior Australian estate planning advisor writing a personalised 3-paragraph snapshot for someone who just completed an estate planning assessment.\n\nUSER'S SITUATION:\n${anSum}\n\nMATCHED TOPICS (ordered by relevance):\n${docSum}\n\nWrite exactly 3 paragraphs:\n1. Acknowledge their specific situation and key complexity factors. Be specific.\n2. Name the 2-3 most critical topics and explain WHY they matter for this person. Reference specific dollar amounts or risks where available.\n3. Recommend sharing this with their professional advisor and suggest the single most important conversation to have first.\n\nRules: Plain Australian English. Be warm but direct. Never use bullet points. Never say "based on your answers". Reference topics by plain English title. Under 250 words.`}]
-    })}).then(r=>r.json()).then(d=>{setText(d.content?.map(c=>c.text||"").join("")||"");setLoading(false);}).catch(()=>setLoading(false));
+    })}).then(r=>r.json()).then(d=>{setText(d.content?.map((c: any)=>c.text||"").join("")||"");setLoading(false);}).catch(()=>setLoading(false));
   }, [results, answers]);
   if (!loading && !text) return null;
   return (
