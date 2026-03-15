@@ -520,7 +520,7 @@ export default function EstatePlanningQuiz() {
             })}
           </div>
           {curQ.t==="m" && <div style={{marginTop:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:13,color:"#8896a7"}}>{curQ.mx?`${(answers[curQ.v]||[]).filter(v=>v!=="none").length} of ${curQ.mx} selected`:`${(answers[curQ.v]||[]).length} selected`}</span>
+            <span style={{fontSize:13,color:"#8896a7"}}>{curQ.mx?`${(answers[curQ.v]||[]).filter((v: string)=>v!=="none").length} of ${curQ.mx} selected`:`${(answers[curQ.v]||[]).length} selected`}</span>
             <button style={{...btn,opacity:(answers[curQ.v]||[]).length>0?1:0.4}} disabled={!(answers[curQ.v]||[]).length} onClick={goNext}>Continue →</button>
           </div>}
         </div>
