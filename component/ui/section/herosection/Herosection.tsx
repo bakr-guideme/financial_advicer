@@ -13,6 +13,12 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 const businessTools = [
   { name: "Division 7A Analyser", href: "/tools/div7a-analyser", desc: "Loan strategy & retirement planning", icon: "⚖️" },
   { name: "Budget Builder", href: "/tools/budget-builder-myob", desc: "MYOB export to formatted budget", icon: "📊" },
+  { name: "Trust Distribution Analyser", href: "/tools/trust-distribution", desc: "CGT streaming, Div 6AA, s100A, minutes", icon: "⚖️" },
+  { name: "Super Contributions Optimiser", href: "/tools/super-optimiser", desc: "CC, NCC, spouse, downsizer, CGT cap", icon: "🏦" },
+];
+
+const guideMeQuizzes = [
+  { name: "Estate Planning", href: "/guideme/estate-planning", desc: "Personalised estate planning assessment", icon: "🎯" },
 ];
 
 const Herosection = () => {
@@ -70,6 +76,33 @@ const Herosection = () => {
                 </Transition>
               </Menu>
 
+              <Menu as="div" className="relative">
+                <Menu.Button className="flex items-center gap-x-1 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                  GuideMe Quizzes
+                  <ChevronDownIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                </Menu.Button>
+                <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
+                  <Menu.Items className="absolute left-0 z-10 mt-2 w-72 origin-top-left rounded-xl bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Personalised Assessments</p>
+                    </div>
+                    {guideMeQuizzes.map((quiz) => (
+                      <Menu.Item key={quiz.name}>
+                        {({ active }) => (
+                          <Link href={quiz.href} className={`flex items-start gap-3 px-4 py-3 transition-colors ${active ? "bg-gray-50" : ""}`}>
+                            <span className="text-lg mt-0.5">{quiz.icon}</span>
+                            <div>
+                              <p className={`text-sm font-medium ${active ? "text-gray-900" : "text-gray-700"}`}>{quiz.name}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">{quiz.desc}</p>
+                            </div>
+                          </Link>
+                        )}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Items>
+                </Transition>
+              </Menu>
+
               <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors">Sign in</Link>
               <Link href="/register" className="rounded-lg bg-[#1F4E79] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2E75B6] transition-colors">Get started</Link>
             </div>
@@ -99,6 +132,18 @@ const Herosection = () => {
                 </div>
               </Link>
             ))}
+            <div className="border-t border-gray-100 pt-2 mt-2 space-y-1">
+              <p className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">GuideMe Quizzes</p>
+              {guideMeQuizzes.map((quiz) => (
+                <Link key={quiz.name} href={quiz.href} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                  <span>{quiz.icon}</span>
+                  <div>
+                    <p className="font-medium">{quiz.name}</p>
+                    <p className="text-xs text-gray-400">{quiz.desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
             <div className="border-t border-gray-100 pt-2 mt-2 space-y-1">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Sign in</Link>
               <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="block rounded-lg bg-[#1F4E79] px-3 py-2 text-sm font-semibold text-white text-center hover:bg-[#2E75B6]">Get started</Link>

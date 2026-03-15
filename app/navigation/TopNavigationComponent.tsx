@@ -22,6 +22,10 @@ const businessTools = [
   { name: "Budget Builder", href: "/tools/budget-builder-myob", desc: "MYOB export to formatted budget" },
 ];
 
+const guideMeQuizzes = [
+  { name: "Estate Planning", href: "/guideme/estate-planning", desc: "Personalised estate planning assessment" },
+];
+
 const TopNavigationComponent = (props: TopNavigationModel) => {
   const route = useRouter();
   const dispatch = useDispatch();
@@ -126,6 +130,44 @@ const TopNavigationComponent = (props: TopNavigationModel) => {
                         >
                           <p className={`text-sm font-medium ${active ? "text-gray-900" : "text-gray-700"}`}>{tool.name}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{tool.desc}</p>
+                        </Link>
+                      )}
+                    </Menu.Item>
+                  ))}
+                </Menu.Items>
+              </Transition>
+            </Menu>
+          </div>
+
+          {/* ── GuideMe Quizzes Dropdown ── */}
+          <div className="hidden lg:flex lg:items-center">
+            <Menu as="div" className="relative">
+              <Menu.Button className="flex items-center gap-x-1 rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                GuideMe Quizzes
+                <ChevronDownIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
+              </Menu.Button>
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-100"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items className="absolute left-0 z-10 mt-2 w-64 origin-top-left rounded-xl bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Personalised Assessments</p>
+                  </div>
+                  {guideMeQuizzes.map((quiz) => (
+                    <Menu.Item key={quiz.name}>
+                      {({ active }) => (
+                        <Link
+                          href={quiz.href}
+                          className={`block px-4 py-3 transition-colors ${active ? "bg-gray-50" : ""}`}
+                        >
+                          <p className={`text-sm font-medium ${active ? "text-gray-900" : "text-gray-700"}`}>{quiz.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{quiz.desc}</p>
                         </Link>
                       )}
                     </Menu.Item>
