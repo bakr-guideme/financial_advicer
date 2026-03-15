@@ -211,7 +211,7 @@ const QS = [
     {v:"concern",l:"Not currently — but I'm concerned about protecting assets from future family law claims",f:["concerned_about_family_law_claims","concerned_about_family_law_property_claims","concerned_about_asset_protection_in_divorce"]},
     {v:"no",l:"No",f:[]}
   ]},
-  {id:"Q30",v:"primaryConcerns",ph:"your_concerns",t:"m",si:null,q:"What are your biggest estate planning concerns?",h:"Choose the issues that matter most to you right now. Select up to 3.",mx:3,o:[
+  {id:"Q30",v:"primaryConcerns",ph:"your_concerns",t:"m",si:null,q:"What are your biggest estate planning concerns?",h:"Choose the issues that matter most to you right now. Select up to 3.",o:[
     {v:"family_provided",l:"Making sure my family is financially provided for",f:["planning_intergenerational_wealth_transfer","wants_intergenerational_wealth_transfer"]},
     {v:"asset_protection",l:"Protecting assets from creditors or lawsuits",f:["concerned_about_asset_protection_from_creditors","concerned_about_beneficiary_asset_protection","concerned_about_asset_protection_for_beneficiaries","concerned_about_asset_protection"]},
     {v:"tax_minimise",l:"Minimising tax on my estate",f:["concerned_about_cgt_on_estate_assets","has_capital_gains_tax_liability_to_manage","concerned_about_death_benefit_tax_for_beneficiaries"]},
