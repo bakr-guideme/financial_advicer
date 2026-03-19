@@ -7,9 +7,9 @@ import { Providers } from "./provider";
 import UnderDevelopmentBanner from "@/components/UnderDevelopmentBanner";
 
 export const metadata: Metadata = {
-  title: "Financial Advice",
+  title: "BAKR — Business & Accountants Knowledge Resource",
   description:
-    "Get accurate answers to your complex financial questions with our AI-powered advisory tool.",
+    "Professional financial tools, guided assessments, and educational resources for accountants, financial planners, and their clients.",
 };
 
 export default function RootLayout({

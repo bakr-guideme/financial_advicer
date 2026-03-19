@@ -1,11 +1,10 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { NextResponse } from "next/server";
 
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY!,
-});
-
-const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
+function getIndex() {
+  const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
+  return pc.Index(process.env.PINECONE_INDEX_NAME!);
+}
 
 // Define metadata structure expected from Pinecone
 interface PineconeRecordMetadata {
@@ -26,7 +25,7 @@ interface PineconeFetchResponse {
 async function resolveDocumentUrl(documentId: string): Promise<string | null> {
   try {
     // Method 1: Query Pinecone directly using the existing index
-    const queryResponse = (await index.fetch([
+    const queryResponse = (await getIndex().fetch([
       documentId,
     ])) as PineconeFetchResponse;
 
