@@ -1,5 +1,23 @@
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
+
+// Second Firebase app pointing to document-generator-system (where BAKR docs live)
+const BAKR_DOCS_CONFIG = {
+  apiKey: "AIzaSyCvCEmtvY7yrCyRHYgf9mScf5DB3gwcYsM",
+  authDomain: "document-generator-system.firebaseapp.com",
+  projectId: "document-generator-system",
+  storageBucket: "document-generator-system.firebasestorage.app",
+};
+
+function getBakrDocsDb() {
+  const appName = "bakr-docs";
+  try {
+    return getFirestore(getApp(appName));
+  } catch {
+    const app = initializeApp(BAKR_DOCS_CONFIG, appName);
+    return getFirestore(app);
+  }
+}
 
 export interface SearchResult {
   title: string;
@@ -67,6 +85,7 @@ export async function searchFirestoreDocuments(
   query: string
 ): Promise<SearchResult[]> {
   
+  const db = getBakrDocsDb();
   const colRef = collection(db, "BAKR_documents_with_refs");
   console.log("[BAKR Search] Querying Firestore collection BAKR_documents_with_refs...");
   const snapshot = await getDocs(colRef);
