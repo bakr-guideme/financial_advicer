@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 
 // Second Firebase app pointing to document-generator-system (where BAKR docs live)
