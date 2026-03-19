@@ -42,6 +42,11 @@ const STOP_WORDS = new Set([
   "while","about","doing","getting","looking","moving","starting","been",
 ]);
 
+function cleanTitle(title: string): string {
+  // Remove patterns like "1052DOC-", "635ML-", "123AE-", "456DK-" etc from start of title
+  return title.replace(/^\d+[A-Z]{2,3}-\s*/, "").trim();
+}
+
 function scoreDocument(data: Record<string, unknown>, queryWords: string[]): number {
   if (!queryWords.length) return 0;
   let score = 0;
@@ -152,7 +157,7 @@ export async function searchFirestoreDocuments(
     }
 
     results.push({
-      title: String(best.data.title || `Document ${docNum}`),
+      title: cleanTitle(String(best.data.title || `Document ${docNum}`)),
       key: keyArray,
       description: String(best.data.description || ""),
       documentNumber: docNum,
