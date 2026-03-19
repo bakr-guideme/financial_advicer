@@ -1,5 +1,5 @@
-import { getApp } from "firebase/app";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 export interface SearchResult {
   title: string;
@@ -66,7 +66,7 @@ function scoreDocument(data: Record<string, unknown>, queryWords: string[]): num
 export async function searchFirestoreDocuments(
   query: string
 ): Promise<SearchResult[]> {
-  const db = getFirestore(getApp());
+  
   const colRef = collection(db, "BAKR_documents_with_refs");
   console.log("[BAKR Search] Querying Firestore collection BAKR_documents_with_refs...");
   const snapshot = await getDocs(colRef);
