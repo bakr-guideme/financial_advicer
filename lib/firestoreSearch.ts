@@ -90,7 +90,7 @@ export async function searchFirestoreDocuments(
   console.log("[BAKR Search] Querying Firestore collection BAKR_documents_with_refs...");
   const snapshot = await getDocs(colRef);
   console.log("[BAKR Search] Documents found in collection:", snapshot.size);
-  console.log("[BAKR Search] Query words:", queryWords);
+
 
   // Extract meaningful query words
   const queryWords = query
@@ -99,6 +99,7 @@ export async function searchFirestoreDocuments(
     .filter((w) => w.length > 2)
     .filter((w) => !STOP_WORDS.has(w));
 
+  console.log("[BAKR Search] Query words:", queryWords);
   if (queryWords.length === 0) return [];
 
   // Score each document
