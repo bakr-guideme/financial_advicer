@@ -104,7 +104,7 @@ const Herosection = () => {
               </Menu>
 
               <Link href="/login" className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors">Sign in</Link>
-              <Link href="/register" className="rounded-lg bg-[#1F4E79] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2E75B6] transition-colors">Get started</Link>
+              <Link href="/signup" className="rounded-lg bg-[#1F4E79] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2E75B6] transition-colors">Get started</Link>
             </div>
 
             <div className="flex md:hidden">
@@ -146,7 +146,7 @@ const Herosection = () => {
             </div>
             <div className="border-t border-gray-100 pt-2 mt-2 space-y-1">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Sign in</Link>
-              <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="block rounded-lg bg-[#1F4E79] px-3 py-2 text-sm font-semibold text-white text-center hover:bg-[#2E75B6]">Get started</Link>
+              <Link href="/signup" onClick={() => setMobileMenuOpen(false)} className="block rounded-lg bg-[#1F4E79] px-3 py-2 text-sm font-semibold text-white text-center hover:bg-[#2E75B6]">Get started</Link>
             </div>
           </div>
         )}
