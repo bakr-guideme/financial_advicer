@@ -15,6 +15,7 @@ const businessTools = [
   { name: "Budget Builder", href: "/tools/budget-builder-myob", desc: "MYOB export to formatted budget", icon: "📊" },
   { name: "Trust Distribution Analyser", href: "/tools/trust-distribution", desc: "CGT streaming, Div 6AA, s100A, minutes", icon: "⚖️" },
   { name: "Super Contributions Optimiser", href: "/tools/super-optimiser", desc: "CC, NCC, spouse, downsizer, CGT cap", icon: "🏦" },
+  { name: "Business Valuation", href: "/tools/business-valuation", desc: "CFME valuation with professional report", icon: "📊" },
 ];
 
 const guideMeQuizzes = [
