@@ -67,7 +67,11 @@ export async function searchFirestoreDocuments(
   query: string
 ): Promise<SearchResult[]> {
   const db = getFirestore(getApp());
-  const snapshot = await getDocs(collection(db, "BAKR_documents_with_refs"));
+  const colRef = collection(db, "BAKR_documents_with_refs");
+  console.log("[BAKR Search] Querying Firestore collection BAKR_documents_with_refs...");
+  const snapshot = await getDocs(colRef);
+  console.log("[BAKR Search] Documents found in collection:", snapshot.size);
+  console.log("[BAKR Search] Query words:", queryWords);
 
   // Extract meaningful query words
   const queryWords = query
@@ -88,6 +92,8 @@ export async function searchFirestoreDocuments(
     }
   });
 
+  console.log("[BAKR Search] Documents with score > 0:", scored.length);
+  if (scored.length > 0) console.log("[BAKR Search] Top 3:", scored.slice(0,3).map(s => ({ title: s.data.title, score: s.score })));
   scored.sort((a, b) => b.score - a.score);
 
   // Group by documentNumber
