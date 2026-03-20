@@ -143,7 +143,7 @@ const PROXY = '/api/anthropic'
 async function extractPdfText(dataUrl: string): Promise<string> {
   const pdfjsLib = await import('pdfjs-dist')
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
-  
+
   const base64 = dataUrl.split(',')[1]
   const binaryStr = atob(base64)
   const bytes = new Uint8Array(binaryStr.length)
@@ -166,9 +166,35 @@ async function callOpus(system: string, user: string): Promise<string> {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 8000, system, messages: [{ role: 'user', content: user }] })
     })
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('callOpus error:', res.status, errText)
+      return JSON.stringify({ error: `API error ${res.status}` })
+    }
     const data = await res.json()
-    return data.content?.[0]?.text || JSON.stringify(data)
+    if (data.error) {
+      console.error('callOpus API error:', data.error, data.details)
+      return JSON.stringify({ error: data.error })
+    }
+    const text = data.content?.[0]?.text || ''
+    console.log('callOpus response (first 300):', text.substring(0, 300))
+    return text
   } catch (err: any) { console.error('Opus:', err); return JSON.stringify({ error: err.message }) }
+}
+
+// Helper to clean and parse JSON from AI responses
+function cleanJSON(text: string): any {
+  // Strip markdown fences
+  let clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  // If response starts with non-JSON text, try to find the JSON
+  if (!clean.startsWith('{') && !clean.startsWith('[')) {
+    const jsonStart = clean.search(/[\[{]/)
+    if (jsonStart >= 0) clean = clean.substring(jsonStart)
+  }
+  // If it ends with non-JSON text, try to find the end
+  const lastBrace = Math.max(clean.lastIndexOf('}'), clean.lastIndexOf(']'))
+  if (lastBrace >= 0) clean = clean.substring(0, lastBrace + 1)
+  return JSON.parse(clean)
 }
 
 // ─── MULTIPLE DERIVATION ────────────────────────────────────────────────────
@@ -441,9 +467,7 @@ CRITICAL RULES:
         return
       }
       console.log('Raw text (first 500):', text.substring(0, 500))
-      // Strip markdown fences if present
-      const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const p = JSON.parse(clean)
+      const p = cleanJSON(text)
       if (p.plItems) setPlItems(p.plItems.map((i: any) => ({ ...i, id: genId() })))
       if (p.bsItems) setBsItems(p.bsItems.map((i: any) => ({ ...i, id: genId(), adjustedValue: 0, classification: i.section?.includes('liability') ? (i.name?.toLowerCase().includes('borrow') || i.name?.toLowerCase().includes('loan') || i.name?.toLowerCase().includes('finance') ? 'debt' : 'operating') : 'operating', userNotes: '' })))
       if (p.years) {
@@ -461,14 +485,18 @@ CRITICAL RULES:
     setIsProcessing(true)
     setProcessingMsg('Analysing expenses for normalisation...')
     const plSummary = plItems.filter(i => ['opex', 'other_income'].includes(i.category)).map(i => `${i.name}: ${years.map(yr => `FY${yr}=${i.amounts[yr] || 0}`).join(', ')}`).join('\n')
-    const sys = `You are an Australian CA doing business valuation normalisation analysis. Flag discretionary, non-recurring, personal, owner compensation and non-operating items. Be thorough but conservative. Return ONLY a JSON array: [{"lineItemName":"...","category":"owner_comp|related_party|personal_discretionary|non_recurring|non_operating","amounts":{"2024":0},"recommendedTreatment":"add_back|deduct|adjust_to_market|leave","aiReasoning":"..."}]`
+    const sys = `You are an Australian CA doing business valuation normalisation analysis. Flag discretionary, non-recurring, personal, owner compensation and non-operating items. Be thorough but conservative. Return ONLY a JSON array (no explanation, no markdown): [{"lineItemName":"...","category":"owner_comp|related_party|personal_discretionary|non_recurring|non_operating","amounts":{"2024":0},"recommendedTreatment":"add_back|deduct|adjust_to_market|leave","aiReasoning":"..."}]`
     const usr = `Business: ${engagement.businessName}, Industry: ${engagement.industrySector}, Employees: ${engagement.employees}, Method: ${engagement.valuationMethod}\n\nP&L items:\n${plSummary}\n\nDescription: ${engagement.businessDescription}`
     try {
       const r = await callOpus(sys, usr)
-      const p = JSON.parse(r)
-      setNormItems(p.map((i: any) => ({ ...i, id: genId(), userDecision: i.recommendedTreatment === 'leave' ? 'reject' : 'accept', userAmount: i.amounts, userReasoning: '' })))
-      setProcessingMsg('Analysis complete.')
-    } catch { setProcessingMsg('Error. Add items manually.') }
+      const p = cleanJSON(r)
+      const items = Array.isArray(p) ? p : (p.items || p.adjustments || [])
+      setNormItems(items.map((i: any) => ({ ...i, id: genId(), userDecision: i.recommendedTreatment === 'leave' ? 'reject' : 'accept', userAmount: i.amounts || {}, userReasoning: '' })))
+      setProcessingMsg(`Analysis complete: ${items.length} items flagged.`)
+    } catch (err: any) {
+      console.error('Normalisation parse error:', err)
+      setProcessingMsg(`AI analysis returned non-standard format. Add items manually. (${err.message})`)
+    }
     setIsProcessing(false)
   }, [plItems, years, engagement])
 
@@ -476,15 +504,18 @@ CRITICAL RULES:
     setIsProcessing(true)
     setProcessingMsg('Analysing EBITDA pattern for optimal weighting...')
     const ebitdaSeries = years.map(yr => `FY${yr}: ${fmt(normalisedEbitdaByYear[yr] || 0)}`).join(', ')
-    const sys = `You are an Australian CA determining EBITDA weightings for a business valuation. Consider: trends, anomalies, user context. Return ONLY JSON: {"weights":[{"year":"2024","weight":40},...],"reasoning":"..."}`
+    const sys = `You are an Australian CA determining EBITDA weightings for a business valuation. Consider: trends, anomalies, user context. Return ONLY JSON (no explanation, no markdown): {"weights":[{"year":"2024","weight":40},...],"reasoning":"..."}`
     const usr = `Normalised EBITDA: ${ebitdaSeries}\nUser context: ${weightContext || 'No additional context provided'}\nBusiness: ${engagement.businessName}, Industry: ${engagement.industrySector}`
     try {
       const r = await callOpus(sys, usr)
-      const p = JSON.parse(r)
+      const p = cleanJSON(r)
       if (p.weights) setWeights(p.weights)
       if (p.reasoning) setAiWeightReasoning(p.reasoning)
       setProcessingMsg('Weighting analysis complete.')
-    } catch { setProcessingMsg('Error. Set weights manually.') }
+    } catch (err: any) {
+      console.error('Weighting parse error:', err)
+      setProcessingMsg(`Weighting analysis error. Adjust weights manually. (${err.message})`)
+    }
     setIsProcessing(false)
   }, [years, normalisedEbitdaByYear, weightContext, engagement])
 
@@ -493,21 +524,24 @@ CRITICAL RULES:
     setProcessingMsg('Analysing business risk factors...')
     const latestYr = years[0] || ''
     const d = ebitdaByYear[latestYr]
-    const financialSummary = `Revenue: ${fmt(d?.revenue || 0)}, EBITDA: ${fmt(normalisedEbitdaByYear[latestYr] || 0)}, Margin: ${d?.revenue ? fmtPct((normalisedEbitdaByYear[latestYr] || 0) / d.revenue) : 'N/A'}`
-    const sys = `You are an Australian CA scoring risk factors for business valuation (APES 225 aligned). Score each factor 0-10 (low=less risk, high=more risk) with both conservative (high) and optimistic (low) scores. Return ONLY JSON: {"factors":[{"id":"revenue","scoreLow":3,"scoreHigh":5,"reasoning":"..."},...], "industryAnalysis":"2-3 paragraph industry overview"}`
-    const usr = `Business: ${engagement.businessName}\nIndustry: ${engagement.industrySector}\nDescription: ${engagement.businessDescription}\nFinancials: ${financialSummary}\nEmployees: ${engagement.employees}, Years trading: ${engagement.yearsTrading}\nFME: ${fmt(fme)}`
+    const ebitdaSeries = years.map(yr => `FY${yr}: Revenue ${fmt(ebitdaByYear[yr]?.revenue || 0)}, EBITDA ${fmt(normalisedEbitdaByYear[yr] || 0)}`).join('; ')
+    const sys = `You are an Australian CA scoring risk factors for business valuation (APES 225 aligned). Score each factor 0-10 (low=less risk, high=more risk) with both conservative (high) and optimistic (low) scores. The low score should always be <= the high score. Return ONLY JSON (no explanation, no markdown): {"factors":[{"id":"revenue","scoreLow":3,"scoreHigh":5,"reasoning":"..."},{"id":"financial","scoreLow":2,"scoreHigh":4,"reasoning":"..."},{"id":"keyman","scoreLow":4,"scoreHigh":6,"reasoning":"..."},{"id":"customer","scoreLow":3,"scoreHigh":5,"reasoning":"..."},{"id":"profitability","scoreLow":4,"scoreHigh":6,"reasoning":"..."},{"id":"competitive","scoreLow":5,"scoreHigh":7,"reasoning":"..."}], "industryAnalysis":"2-3 paragraph industry overview for the report"}`
+    const usr = `Business: ${engagement.businessName}\nIndustry: ${engagement.industrySector}\nDescription: ${engagement.businessDescription}\nFinancials: ${ebitdaSeries}\nEmployees: ${engagement.employees}, Years trading: ${engagement.yearsTrading}\nFME: ${fmt(fme)}\nGross margin: ${d?.revenue ? fmtPct(d.grossProfit / d.revenue) : 'N/A'}`
     try {
       const r = await callOpus(sys, usr)
-      const p = JSON.parse(r)
+      const p = cleanJSON(r)
       if (p.factors) {
         setRiskFactors(prev => prev.map(f => {
           const match = p.factors.find((pf: any) => pf.id === f.id)
-          return match ? { ...f, scoreLow: match.scoreLow, scoreHigh: match.scoreHigh, aiReasoning: match.reasoning } : f
+          return match ? { ...f, scoreLow: match.scoreLow, scoreHigh: match.scoreHigh, aiReasoning: match.reasoning || '' } : f
         }))
       }
       if (p.industryAnalysis) setIndustryAnalysis(p.industryAnalysis)
       setProcessingMsg('Risk analysis complete.')
-    } catch { setProcessingMsg('Error. Score factors manually.') }
+    } catch (err: any) {
+      console.error('Risk parse error:', err)
+      setProcessingMsg(`Risk analysis error. Score factors manually. (${err.message})`)
+    }
     setIsProcessing(false)
   }, [years, ebitdaByYear, normalisedEbitdaByYear, engagement, fme])
 
