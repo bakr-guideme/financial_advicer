@@ -1029,7 +1029,6 @@ CRITICAL RULES:
               const operatingLiabs = bsItems.filter(b => b.classification === 'operating' && b.section.includes('liability'))
               const surplusItems = bsItems.filter(b => b.classification === 'surplus')
               const debtItems = bsItems.filter(b => b.classification === 'debt')
-              const equityItems = bsItems.filter(b => b.section === 'equity')
               const goodwillItems = bsItems.filter(b => b.name.toLowerCase().includes('goodwill') || b.name.toLowerCase().includes('intangible'))
               const totalOpAssets = operatingAssets.reduce((s, b) => s + getVal(b), 0)
               const totalOpLiabs = operatingLiabs.reduce((s, b) => s + getVal(b), 0)
