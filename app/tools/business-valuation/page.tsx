@@ -258,14 +258,13 @@ export default function BusinessValuationTool() {
     const evHigh = fme * multipleHigh
 
     // Balance sheet analysis
-    let surplusAssets = 0, netDebt = 0, _operatingAssets = 0, totalTangibleAssets = 0
+    let surplusAssets = 0, netDebt = 0, totalTangibleAssets = 0
     const latestYr = years[0] || ''
     for (const item of bsItems) {
       const val = item.adjustedValue || (item.amounts[latestYr] || 0)
       if (item.classification === 'surplus') surplusAssets += val
       else if (item.classification === 'debt') netDebt += Math.abs(val)
       else if (item.classification === 'operating') {
-        _operatingAssets += val
         if (item.section === 'fixed_asset' || item.section === 'current_asset') totalTangibleAssets += val
       }
     }
