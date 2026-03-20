@@ -2,7 +2,6 @@
 'use client'
 
 import { useState, useCallback, useMemo, Fragment } from 'react'
-import * as pdfjsLib from 'pdfjs-dist'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BAKR BUSINESS VALUATION TOOL — Complete (Steps 1-9)
@@ -142,6 +141,9 @@ const PROXY = '/api/anthropic'
 // ─── PDF TEXT EXTRACTION ────────────────────────────────────────────────────
 
 async function extractPdfText(dataUrl: string): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  
   const base64 = dataUrl.split(',')[1]
   const binaryStr = atob(base64)
   const bytes = new Uint8Array(binaryStr.length)
@@ -151,8 +153,8 @@ async function extractPdfText(dataUrl: string): Promise<string> {
   const pages: string[] = []
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i)
-    const content = await page.getTextContent()
-    const text = content.items.map((item: any) => ('str' in item ? item.str : '')).join(' ')
+    const tc = await page.getTextContent()
+    const text = tc.items.map((item: any) => ('str' in item ? item.str : '')).join(' ')
     if (text.trim()) pages.push(`--- Page ${i} ---\n${text}`)
   }
   return pages.join('\n\n')
@@ -182,11 +184,6 @@ function riskScoreToMultiple(score: number): number {
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// Set up pdf.js worker
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-}
 
 export default function BusinessValuationTool() {
   // ── State ─────────────────────────────────────────────────────────────────
