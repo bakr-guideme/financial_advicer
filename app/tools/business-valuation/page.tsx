@@ -4,6 +4,46 @@
 import { useState, useCallback, useMemo, Fragment } from 'react'
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// MODAL COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/40" />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h3 className="text-lg font-bold text-[#1F4E79]">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <div className="px-6 py-4 text-sm text-gray-700 leading-relaxed space-y-3">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// Blue "?" for novice explanations
+function HelpBtn({ onClick, label }: { onClick: () => void; label?: string }) {
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-1 text-[10px] text-[#2E75B6] hover:text-[#1F4E79] font-medium transition" title={label || 'What is this?'}>
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-[#2E75B6] text-[9px] font-bold">?</span>
+      {label && <span className="underline decoration-dotted">{label}</span>}
+    </button>
+  )
+}
+
+// Calculator icon for accountant workings
+function WorkingsBtn({ onClick, label }: { onClick: () => void; label?: string }) {
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 font-medium transition" title={label || 'View workings'}>
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-emerald-500 text-[9px] font-bold">#</span>
+      {label && <span className="underline decoration-dotted">{label}</span>}
+    </button>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // BAKR BUSINESS VALUATION TOOL — Complete (Steps 1-9)
 // bakr.com.au/tools/business-valuation
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -224,6 +264,9 @@ export default function BusinessValuationTool() {
   const [uploadedFiles, setUploadedFiles] = useState<{name: string, type: string, fy: string, data: string}[]>([])
   const [stepComplete, setStepComplete] = useState<Record<number, boolean>>({})
 
+  // Modal state
+  const [activeModal, setActiveModal] = useState<string | null>(null)
+  const m = useCallback((id: string) => () => setActiveModal(id), [])
   // Step 6 state
   const [weights, setWeights] = useState<WeightingConfig[]>([])
   const [weightContext, setWeightContext] = useState('')
@@ -673,7 +716,7 @@ CRITICAL RULES:
             <textarea className={ta} rows={5} value={engagement.businessDescription} onChange={e => setEngagement(p => ({...p, businessDescription: e.target.value}))} placeholder="Products/services, competitive position, key markets..." />
           </div>
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Method</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Method <HelpBtn onClick={m('what-is-ebitda')} label="What is EBITDA?" /> <HelpBtn onClick={m('what-is-sde')} label="What is SDE?" /></h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {(['EBITDA','SDE'] as const).map(m => (
                 <div key={m} className={`p-4 rounded-xl border-2 cursor-pointer transition ${engagement.valuationMethod === m ? 'border-[#1F4E79] bg-[#F0F4F8]' : 'border-gray-200 hover:border-[#2E75B6]'}`}
@@ -689,7 +732,7 @@ CRITICAL RULES:
                 <input type="number" className={inp+" max-w-xs"} value={engagement.ownerMarketSalary||''} onChange={e => setEngagement(p => ({...p, ownerMarketSalary: parseFloat(e.target.value)||0}))} placeholder="e.g. 150000" />
               </div>
             )}
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Scope</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Scope <HelpBtn onClick={m('enterprise-vs-equity')} label="Enterprise vs Equity?" /></h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(['enterprise','equity'] as const).map(s => (
                 <div key={s} className={`p-4 rounded-xl border-2 cursor-pointer transition ${engagement.valuationScope === s ? 'border-[#1F4E79] bg-[#F0F4F8]' : 'border-gray-200 hover:border-[#2E75B6]'}`}
@@ -708,7 +751,7 @@ CRITICAL RULES:
         {/* ═══ STEP 2 — DATA ═════════════════════════════════════════════ */}
         {step === 2 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Upload Financial Statements</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Upload Financial Statements <HelpBtn onClick={m('how-to-upload')} label="How to upload" /></h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="border-2 border-dashed border-[#2E75B6] rounded-xl p-4 bg-blue-50/30">
                 <p className="text-sm font-semibold text-[#1F4E79] mb-1">📄 Financial Statements</p>
@@ -800,7 +843,7 @@ CRITICAL RULES:
         {/* ═══ STEP 3 — EBITDA ═══════════════════════════════════════════ */}
         {step === 3 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">EBITDA Calculation</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">EBITDA Calculation <HelpBtn onClick={m('what-is-ebitda')} label="What is EBITDA?" /> <WorkingsBtn onClick={m('ebitda-workings')} label="View workings" /></h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-4 py-2">Item</th>{years.map(yr => <th key={yr} className="text-right px-4 py-2">FY{yr}</th>)}</tr></thead>
@@ -831,7 +874,7 @@ CRITICAL RULES:
         {step === 4 && (<div className="space-y-6">
           <div className={sc}>
             <div className="flex items-center justify-between mb-4">
-              <div><h2 className="text-lg font-bold text-[#1F4E79]">Normalisation Adjustments</h2><p className="text-xs text-gray-500">Adjust for discretionary, non-recurring and personal expenses</p></div>
+              <div><h2 className="text-lg font-bold text-[#1F4E79]">Normalisation Adjustments <HelpBtn onClick={m('what-is-normalisation')} label="What is this?" /> <HelpBtn onClick={m('norm-categories')} label="Categories explained" /></h2><p className="text-xs text-gray-500">Adjust for discretionary, non-recurring and personal expenses</p></div>
               <button className={bp} onClick={analyseNormalisation} disabled={isProcessing}>{isProcessing ? '⏳...' : '🤖 AI Analysis'}</button>
             </div>
             {processingMsg && step===4 && <p className="text-sm text-[#2E75B6] mb-3">{processingMsg}</p>}
@@ -871,7 +914,7 @@ CRITICAL RULES:
           </div>
           {normItems.length > 0 && (
             <div className={sc}>
-              <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Normalised EBITDA</h2>
+              <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Normalised EBITDA <WorkingsBtn onClick={m('normalised-ebitda-workings')} label="View workings" /></h2>
               <table className="w-full text-sm"><thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-4 py-2">Item</th>{years.map(yr => <th key={yr} className="text-right px-4 py-2">FY{yr}</th>)}</tr></thead>
                 <tbody>
                   <tr className="bg-gray-50"><td className="px-4 py-2 font-semibold">Reported EBITDA</td>{years.map(yr => <td key={yr} className="text-right px-4 py-2 font-semibold">{fmt(ebitdaByYear[yr]?.ebitda||0)}</td>)}</tr>
@@ -895,7 +938,7 @@ CRITICAL RULES:
         {/* ═══ STEP 5 — BALANCE SHEET ════════════════════════════════════ */}
         {step === 5 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Balance Sheet Review & Classification</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Balance Sheet Review & Classification <HelpBtn onClick={m('balance-sheet-classification')} label="How to classify" /> <HelpBtn onClick={m('working-capital-explained')} label="Working capital" /></h2>
             <p className="text-xs text-gray-500 mb-1">Classify each item as <strong>Operating</strong> (needed to earn EBITDA), <strong>Surplus</strong> (added to enterprise value), or <strong>Debt</strong> (deducted). Adjust book values to estimated market values where appropriate.</p>
             <p className="text-xs text-amber-600 mb-4">⚠️ Operating assets are already valued within the enterprise value (the multiple prices them in). Only surplus assets are added separately.</p>
             
@@ -976,7 +1019,7 @@ CRITICAL RULES:
         {/* ═══ STEP 6 — WEIGHTING ════════════════════════════════════════ */}
         {step === 6 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Future Maintainable Earnings (FME)</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Future Maintainable Earnings (FME) <HelpBtn onClick={m('what-is-fme')} label="What is FME?" /> <WorkingsBtn onClick={m('fme-workings')} label="View workings" /></h2>
             <p className="text-xs text-gray-500 mb-4">Weight each year&apos;s normalised EBITDA to derive the FME. More recent years typically receive higher weight unless there&apos;s a reason to adjust.</p>
             
             {/* EBITDA bar visual */}
@@ -1041,7 +1084,7 @@ CRITICAL RULES:
         {step === 7 && (<div className="space-y-6">
           <div className={sc}>
             <div className="flex items-center justify-between mb-4">
-              <div><h2 className="text-lg font-bold text-[#1F4E79]">Risk Analysis & EBITDA Multiple</h2><p className="text-xs text-gray-500">Score each factor 0 (lowest risk) to 10 (highest risk)</p></div>
+              <div><h2 className="text-lg font-bold text-[#1F4E79]">Risk Analysis & EBITDA Multiple <HelpBtn onClick={m('risk-scoring-explained')} label="How this works" /> <WorkingsBtn onClick={m('multiple-workings')} label="View workings" /></h2><p className="text-xs text-gray-500">Score each factor 0 (lowest risk) to 10 (highest risk)</p></div>
               <button className={bp} onClick={analyseRisk} disabled={isProcessing}>{isProcessing ? '⏳...' : '🤖 AI Risk Scoring'}</button>
             </div>
             
@@ -1104,7 +1147,7 @@ CRITICAL RULES:
         {/* ═══ STEP 8 — VALUATION ════════════════════════════════════════ */}
         {step === 8 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Summary</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Summary <WorkingsBtn onClick={m('valuation-workings')} label="Full workings" /> <WorkingsBtn onClick={m('bs-surplus-workings')} label="Surplus & debt detail" /></h2>
             <table className="w-full text-sm">
               <tbody>
                 <tr className="border-b"><td className="py-2 text-gray-600">Future Maintainable Earnings (FME)</td><td className="text-right py-2 font-bold">{fmt(fme)}</td></tr>
@@ -1126,7 +1169,7 @@ CRITICAL RULES:
 
           {/* Cross-checks */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Cross-Checks</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Cross-Checks <HelpBtn onClick={m('equipment-floor')} label="Equipment floor explained" /></h2>
             {valuation.floorExceeded && (
               <div className="p-3 bg-red-50 border border-red-300 rounded-lg mb-3">
                 <p className="text-sm font-bold text-red-700">⚠️ Equipment Floor Value Warning</p>
@@ -1147,7 +1190,7 @@ CRITICAL RULES:
 
           {/* Sensitivity */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Sensitivity Matrix</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Sensitivity Matrix <HelpBtn onClick={m('sensitivity-explained')} label="How to read this" /></h2>
             <table className="w-full text-xs">
               <thead><tr className="bg-[#1F4E79] text-white">
                 <th className="px-3 py-2">FME ↓ / Multiple →</th>
@@ -1168,7 +1211,7 @@ CRITICAL RULES:
 
           {/* Discounts */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Discount Considerations</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Discount Considerations <HelpBtn onClick={m('discounts-explained')} label="What are discounts?" /></h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 border rounded-lg">
                 <label className="flex items-center gap-2 mb-2"><input type="checkbox" checked={discounts.applyMinority} onChange={e => setDiscounts(p => ({...p,applyMinority:e.target.checked}))} /><span className="text-sm font-semibold text-gray-700">Minority Discount</span></label>
@@ -1225,6 +1268,220 @@ CRITICAL RULES:
           </div>
         </div>)}
       </div>
+
+      {/* ═══ MODALS ════════════════════════════════════════════════════ */}
+      <Modal open={activeModal==='what-is-ebitda'} onClose={() => setActiveModal(null)} title="What is EBITDA?">
+        <p><strong>EBITDA</strong> stands for Earnings Before Interest, Tax, Depreciation and Amortisation. It measures a business&apos;s operating profitability before capital structure decisions (how you finance the business) and non-cash accounting charges.</p>
+        <p><strong>Why use it for valuation?</strong> Because different buyers will finance the acquisition differently (some with debt, some with cash), and depreciation policies vary between businesses. EBITDA strips these out so you can compare the core earning power of different businesses on a level playing field.</p>
+        <p><strong>How it&apos;s calculated:</strong> Net Profit + Depreciation + Amortisation + Interest + Tax = EBITDA</p>
+      </Modal>
+
+      <Modal open={activeModal==='what-is-sde'} onClose={() => setActiveModal(null)} title="What is SDE?">
+        <p><strong>SDE</strong> (Seller&apos;s Discretionary Earnings) equals EBITDA plus the owner&apos;s total compensation (salary, superannuation, benefits, personal expenses run through the business).</p>
+        <p><strong>When to use it:</strong> SDE is used when the buyer will be an owner-operator who replaces the current owner. The buyer &quot;pays themselves&quot; from the SDE — what remains after their salary services the purchase price.</p>
+        <p><strong>When to use EBITDA instead:</strong> Use EBITDA when the buyer will install professional management (e.g., a corporate acquirer or competitor). They already have management so the owner&apos;s salary is a real cost they&apos;ll need to replace.</p>
+      </Modal>
+
+      <Modal open={activeModal==='enterprise-vs-equity'} onClose={() => setActiveModal(null)} title="Enterprise Value vs Equity Value">
+        <p><strong>Enterprise Value</strong> is the value of the business operations — what the business earns multiplied by an appropriate multiple. Think of it as the value of the &quot;engine&quot; of the business.</p>
+        <p><strong>Equity Value</strong> is what the shares are actually worth. It takes the enterprise value and adjusts for:</p>
+        <p>• <strong>Plus</strong> surplus assets (things the business owns but doesn&apos;t need for operations, like excess cash, investments, or loans to directors)</p>
+        <p>• <strong>Minus</strong> net debt (finance loans, HP agreements, credit cards)</p>
+        <p>• <strong>Minus</strong> any working capital deficiency (if the business needs more working capital than it currently has)</p>
+        <p><strong>For a share sale</strong>, you need equity value. For an asset sale (buying just the business operations), enterprise value is usually sufficient.</p>
+      </Modal>
+
+      <Modal open={activeModal==='what-is-normalisation'} onClose={() => setActiveModal(null)} title="What is Normalisation?">
+        <p>Normalisation is the process of adjusting a business&apos;s historical profits to show what a <strong>new owner</strong> could expect to earn. We remove expenses that are personal to the current owner or won&apos;t continue after a sale.</p>
+        <p><strong>Common adjustments include:</strong></p>
+        <p>• <strong>Owner compensation:</strong> The owner may be paying themselves above or below market rate. We adjust to what it would cost to hire someone for their role.</p>
+        <p>• <strong>Personal expenses:</strong> Travel, entertainment, motor vehicles, memberships that are really for the owner&apos;s personal benefit, not business necessity.</p>
+        <p>• <strong>Related party transactions:</strong> Rent paid to the owner&apos;s property trust, management fees to the owner&apos;s other companies — these may be above or below market rate.</p>
+        <p>• <strong>Non-recurring items:</strong> One-off legal fees, restructuring costs, insurance claims, government grants — things that won&apos;t happen again.</p>
+        <p>• <strong>Non-operating items:</strong> Investment income, rental income from non-core property — these are valued separately as surplus assets.</p>
+        <p>Each adjustment directly affects the valuation. At a 3x multiple, every $10,000 adjustment changes the business value by $30,000.</p>
+      </Modal>
+
+      <Modal open={activeModal==='norm-categories'} onClose={() => setActiveModal(null)} title="Normalisation Categories Explained">
+        <p><strong>Owner Compensation:</strong> If the owner takes $250k but a replacement manager would cost $150k, we add back $100k. If the owner takes $80k but should take $150k, we deduct $70k. This works both ways.</p>
+        <p><strong>Related Party:</strong> Rent paid to the owner&apos;s SMSF, management fees to associated entities, wages to family members not actively working. Adjusted to what arm&apos;s length transactions would cost.</p>
+        <p><strong>Personal / Discretionary:</strong> Donations, sponsorships, owner&apos;s travel, club memberships, personal motor vehicle costs. These stop when the business sells.</p>
+        <p><strong>Non-Recurring:</strong> Lawsuit settlements, COVID grants, one-off restructuring costs, major bad debt write-offs. By definition, these won&apos;t happen again.</p>
+        <p><strong>Non-Operating:</strong> Interest income, dividend income, rental income from unrelated property. These relate to assets that are valued separately, not to the business operations.</p>
+      </Modal>
+
+      <Modal open={activeModal==='balance-sheet-classification'} onClose={() => setActiveModal(null)} title="Balance Sheet Classification">
+        <p><strong>Why classify balance sheet items?</strong> Not every asset and liability affects the equity value in the same way.</p>
+        <p><strong>Operating:</strong> Assets and liabilities needed to run the business (trade debtors, stock, equipment, trade creditors, employee provisions). These are <em>already valued within the enterprise value</em> — the EBITDA multiple implicitly prices them in. Do NOT add them again.</p>
+        <p><strong>Surplus:</strong> Assets the business owns but doesn&apos;t need for operations (excess cash, investments, director loans, non-operating property). These are ADDED to the enterprise value because a buyer gets them as a bonus.</p>
+        <p><strong>Debt:</strong> Interest-bearing liabilities (bank loans, HP, finance leases). These are DEDUCTED from the enterprise value because a buyer typically expects the seller to repay debt on settlement.</p>
+        <p className="bg-amber-50 p-3 rounded-lg border border-amber-200"><strong>⚠️ Common mistake:</strong> Adding operating assets ON TOP of the enterprise value. This is double-counting. The plant &amp; equipment, stock, and debtors are already priced into the multiple. Only surplus assets get added.</p>
+      </Modal>
+
+      <Modal open={activeModal==='working-capital-explained'} onClose={() => setActiveModal(null)} title="Working Capital Adjustment">
+        <p><strong>Working capital</strong> = Current operating assets (debtors, stock) minus current operating liabilities (creditors, provisions). It&apos;s the day-to-day funding the business needs to operate.</p>
+        <p><strong>When to adjust:</strong> If the business has significantly less working capital than it needs (e.g., a large creditor backlog), a buyer would need to inject cash to normalise it. This reduces the equity value.</p>
+        <p><strong>When NOT to adjust:</strong> If working capital is adequate for the business&apos;s needs, no adjustment is needed. A modest surplus is normal and doesn&apos;t add to value.</p>
+        <p><strong>How to calculate:</strong> Compare current operating assets to current operating liabilities. If there&apos;s a material deficiency compared to what the business needs, enter the shortfall as a negative adjustment.</p>
+      </Modal>
+
+      <Modal open={activeModal==='what-is-fme'} onClose={() => setActiveModal(null)} title="Future Maintainable Earnings (FME)">
+        <p><strong>FME</strong> represents the level of earnings the business can reasonably be expected to generate going forward. It&apos;s the number we multiply by the EBITDA multiple to get the enterprise value.</p>
+        <p><strong>How it&apos;s derived:</strong> We take the normalised EBITDA for each year and apply weights. More recent years typically get higher weight because they better reflect current performance.</p>
+        <p><strong>Why not just use the latest year?</strong> Because one year might be unusually good or bad. Weighting across multiple years smooths out anomalies and gives a more reliable picture of sustainable earnings.</p>
+        <p><strong>Adjusting weights:</strong> If a particular year was affected by unusual circumstances (COVID, one-off customer loss, restructuring), you can reduce its weight and explain why. Your explanation is included in the valuation report.</p>
+      </Modal>
+
+      <Modal open={activeModal==='risk-scoring-explained'} onClose={() => setActiveModal(null)} title="Risk Scoring & EBITDA Multiple">
+        <p><strong>The EBITDA multiple</strong> reflects how risky the business is. A safer, more predictable business commands a higher multiple (meaning a higher price relative to earnings). A riskier business gets a lower multiple.</p>
+        <p><strong>How we derive it:</strong> Six risk factors are scored from 0 (very low risk) to 10 (very high risk). Each has a low (optimistic) and high (conservative) score to create a range. The weighted average produces a composite risk score, which maps to a multiple:</p>
+        <p>• Risk score 2–3 → Multiple of ~5x (safe, predictable business)</p>
+        <p>• Risk score 5 → Multiple of ~3x (moderate risk)</p>
+        <p>• Risk score 8–9 → Multiple of ~1x (very high risk)</p>
+        <p><strong>For Australian SMEs</strong>, typical multiples range from 1x to 6x EBITDA. Larger businesses with more predictable earnings trade at higher multiples.</p>
+      </Modal>
+
+      <Modal open={activeModal==='equipment-floor'} onClose={() => setActiveModal(null)} title="Equipment Floor Value Check">
+        <p>The <strong>equipment floor value</strong> is the total realisable value of all tangible business assets (plant, equipment, vehicles, stock). This serves as a &quot;sanity check&quot; on the enterprise value.</p>
+        <p><strong>If tangible assets exceed the enterprise value</strong>, it means the business would be worth more if you sold all the equipment individually than if you sold it as a going concern. This suggests either:</p>
+        <p>• The business isn&apos;t generating adequate returns on its asset base</p>
+        <p>• The business may be worth more on a break-up/liquidation basis</p>
+        <p>• The EBITDA multiple may need reconsideration</p>
+        <p>This doesn&apos;t mean the equipment value gets added to the enterprise value — it&apos;s a warning flag for further investigation.</p>
+      </Modal>
+
+      <Modal open={activeModal==='discounts-explained'} onClose={() => setActiveModal(null)} title="Valuation Discounts">
+        <p><strong>Minority Discount</strong> (typically 15–30%): Applied when valuing less than 100% of the shares. A minority shareholder has less control and therefore their shares are worth proportionally less than a controlling interest.</p>
+        <p><strong>Marketability Discount</strong> (typically 10–25%): Private company shares can&apos;t be easily sold on a stock exchange. This lack of liquidity means they&apos;re worth less than equivalent listed shares. Common for private companies where there&apos;s no ready market for the shares.</p>
+        <p><strong>When NOT to apply:</strong> If valuing 100% of the business for a full sale, no minority discount is needed. If the purpose is to set a price between willing buyer and seller, the marketability discount may not be appropriate.</p>
+      </Modal>
+
+      <Modal open={activeModal==='sensitivity-explained'} onClose={() => setActiveModal(null)} title="Understanding the Sensitivity Matrix">
+        <p>The sensitivity matrix shows how the valuation changes under different assumptions. It tests three scenarios for FME (Conservative at 85%, Base at 100%, Optimistic at 115%) against three multiple scenarios (Low, Mid, High).</p>
+        <p><strong>How to read it:</strong> The centre cell (Base FME × Mid Multiple) is the most likely value. The corners show the extreme range. If you believe the business is more likely to maintain its earnings, focus on the right column. If you&apos;re cautious, focus on the left.</p>
+        <p><strong>Why it matters:</strong> Valuation is inherently uncertain. The matrix shows the range of reasonable outcomes and helps both buyer and seller understand where the true value likely falls.</p>
+      </Modal>
+
+      <Modal open={activeModal==='how-to-upload'} onClose={() => setActiveModal(null)} title="How to Upload Financial Statements">
+        <p><strong>What to upload:</strong> The financial statements prepared by the business&apos;s accountant. This is usually a single PDF containing the Profit &amp; Loss, Balance Sheet, Notes, and sometimes a Depreciation Schedule.</p>
+        <p><strong>Minimum requirement:</strong> P&amp;L and Balance Sheet for at least 2 financial years (3 is better).</p>
+        <p><strong>Best results:</strong> Upload the full accountant&apos;s report including Notes and Fixed Asset Schedule. The AI extracts everything relevant.</p>
+        <p><strong>Multiple years in separate files?</strong> That&apos;s fine — upload them all under &quot;Financial Statements&quot;. The AI will combine the data.</p>
+        <p><strong>General Ledger (optional):</strong> If the bookkeeper can export the GL as Excel or CSV, upload it separately. This gives the AI transaction-level detail for better normalisation analysis.</p>
+        <p><strong>After uploading:</strong> Click &quot;Parse with AI&quot; and wait 30-60 seconds. The AI will extract all line items and present them for your review. You can correct any errors before proceeding.</p>
+      </Modal>
+
+      <Modal open={activeModal==='ebitda-workings'} onClose={() => setActiveModal(null)} title="EBITDA Calculation Workings">
+        <p><strong>The EBITDA build-up for each year:</strong></p>
+        {years.map(yr => {
+          const d = ebitdaByYear[yr]
+          if (!d) return null
+          return (
+            <div key={yr} className="bg-gray-50 p-3 rounded-lg mb-2">
+              <p className="font-bold text-[#1F4E79] mb-1">FY{yr}</p>
+              <p>Revenue: {fmt(d.revenue)}</p>
+              <p>Less Cost of Sales: ({fmt(d.cos)})</p>
+              <p className="font-semibold">= Gross Profit: {fmt(d.grossProfit)}</p>
+              <p>Plus Other Income: {fmt(d.otherIncome)}</p>
+              <p>Less Operating Expenses: ({fmt(d.opex)})</p>
+              <p>Less Depreciation: ({fmt(d.depreciation)})</p>
+              <p>Less Amortisation: ({fmt(d.amortisation)})</p>
+              <p>Less Interest: ({fmt(d.interest)})</p>
+              <p>Less Tax: ({fmt(d.tax)})</p>
+              <p className="font-semibold">= Net Profit: {fmt(d.netProfit)}</p>
+              <p className="mt-2">Add back: Depreciation {fmt(d.depreciation)} + Amortisation {fmt(d.amortisation)} + Interest {fmt(d.interest)} + Tax {fmt(d.tax)}</p>
+              <p className="font-bold text-[#1F4E79]">= EBITDA: {fmt(d.ebitda)}</p>
+            </div>
+          )
+        })}
+      </Modal>
+
+      <Modal open={activeModal==='normalised-ebitda-workings'} onClose={() => setActiveModal(null)} title="Normalised EBITDA Workings">
+        {years.map(yr => {
+          const base = ebitdaByYear[yr]?.ebitda || 0
+          const adjustments = normItems.filter(n => n.userDecision !== 'reject')
+          return (
+            <div key={yr} className="bg-gray-50 p-3 rounded-lg mb-2">
+              <p className="font-bold text-[#1F4E79] mb-1">FY{yr}</p>
+              <p>Reported EBITDA: {fmt(base)}</p>
+              {adjustments.map(item => {
+                const amt = item.userDecision === 'modify' ? (item.userAmount[yr] || 0) : (item.amounts[yr] || 0)
+                if (amt === 0) return null
+                return <p key={item.id}>{item.recommendedTreatment === 'add_back' ? '+' : '-'} {item.lineItemName}: {fmt(amt)}</p>
+              })}
+              <p className="font-bold text-[#1F4E79]">= Normalised EBITDA: {fmt(normalisedEbitdaByYear[yr] || 0)}</p>
+            </div>
+          )
+        })}
+      </Modal>
+
+      <Modal open={activeModal==='fme-workings'} onClose={() => setActiveModal(null)} title="FME Calculation Workings">
+        <p><strong>Weighted average of normalised EBITDA:</strong></p>
+        <div className="bg-gray-50 p-3 rounded-lg">
+          {weights.map(w => (
+            <p key={w.year}>FY{w.year}: {fmt(normalisedEbitdaByYear[w.year] || 0)} × {w.weight}% = {fmt((normalisedEbitdaByYear[w.year] || 0) * w.weight / 100)}</p>
+          ))}
+          <p className="font-bold text-[#1F4E79] mt-2 border-t pt-2">FME = {fmt(fme)}</p>
+        </div>
+      </Modal>
+
+      <Modal open={activeModal==='multiple-workings'} onClose={() => setActiveModal(null)} title="EBITDA Multiple Derivation Workings">
+        <p><strong>Risk factor scores and weighted calculation:</strong></p>
+        <div className="bg-gray-50 p-3 rounded-lg mb-2">
+          {riskFactors.map(f => (
+            <p key={f.id}>{f.name}: Low {f.scoreLow}/10, High {f.scoreHigh}/10 (weight: {f.weight.toFixed(1)}%)</p>
+          ))}
+          <p className="font-semibold mt-2 border-t pt-2">Composite Risk Score: {compositeScoreLow.toFixed(2)} (low) – {compositeScoreHigh.toFixed(2)} (high)</p>
+        </div>
+        <p><strong>Mapping risk score to multiple:</strong></p>
+        <p>Score {compositeScoreLow.toFixed(2)} → Multiple {multipleHigh.toFixed(2)}x (optimistic)</p>
+        <p>Score {compositeScoreHigh.toFixed(2)} → Multiple {multipleLow.toFixed(2)}x (conservative)</p>
+        <p className="mt-2"><strong>Formula:</strong> Score ≤2 = 5.0x; Score 5 = 3.0x; Score ≥9 = 1.0x; linear interpolation between.</p>
+      </Modal>
+
+      <Modal open={activeModal==='valuation-workings'} onClose={() => setActiveModal(null)} title="Valuation Calculation Workings">
+        <div className="bg-gray-50 p-3 rounded-lg space-y-1">
+          <p>FME: {fmt(fme)}</p>
+          <p>× Multiple (Low): {multipleLow.toFixed(2)}x → Enterprise Value: {fmt(valuation.evLow)}</p>
+          <p>× Multiple (High): {multipleHigh.toFixed(2)}x → Enterprise Value: {fmt(valuation.evHigh)}</p>
+          {engagement.valuationScope === 'equity' && (<>
+            <p className="mt-2 border-t pt-2 font-semibold">Equity Value (Low):</p>
+            <p>Enterprise Value: {fmt(valuation.evLow)}</p>
+            {workingCapitalAdj !== 0 && <p>Less Working Capital Adj: ({fmt(workingCapitalAdj)})</p>}
+            <p>Plus Surplus Assets: {fmt(valuation.surplusAssets)}</p>
+            <p>Less Net Debt: ({fmt(valuation.netDebt)})</p>
+            <p className="font-bold text-[#1F4E79]">= Equity Value (Low): {fmt(valuation.eqLow)}</p>
+            <p className="mt-2 border-t pt-2 font-semibold">Equity Value (High):</p>
+            <p>Enterprise Value: {fmt(valuation.evHigh)}</p>
+            {workingCapitalAdj !== 0 && <p>Less Working Capital Adj: ({fmt(workingCapitalAdj)})</p>}
+            <p>Plus Surplus Assets: {fmt(valuation.surplusAssets)}</p>
+            <p>Less Net Debt: ({fmt(valuation.netDebt)})</p>
+            <p className="font-bold text-[#1F4E79]">= Equity Value (High): {fmt(valuation.eqHigh)}</p>
+            <p className="font-bold text-[#1F4E79] text-lg mt-2 border-t pt-2">Midpoint: {fmt(valuation.eqMid)}</p>
+          </>)}
+        </div>
+      </Modal>
+
+      <Modal open={activeModal==='bs-surplus-workings'} onClose={() => setActiveModal(null)} title="Surplus Assets & Net Debt Breakdown">
+        <p><strong>Surplus Assets</strong> (added to enterprise value):</p>
+        <div className="bg-emerald-50 p-3 rounded-lg mb-2">
+          {bsItems.filter(b => b.classification === 'surplus').length === 0 ? <p className="text-gray-400">None classified as surplus</p> :
+            bsItems.filter(b => b.classification === 'surplus').map(b => (
+              <p key={b.id}>{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]] || 0))}</p>
+            ))
+          }
+          <p className="font-bold border-t mt-1 pt-1">Total: {fmt(valuation.surplusAssets)}</p>
+        </div>
+        <p><strong>Net Debt</strong> (deducted from enterprise value):</p>
+        <div className="bg-red-50 p-3 rounded-lg mb-2">
+          {bsItems.filter(b => b.classification === 'debt').length === 0 ? <p className="text-gray-400">None classified as debt</p> :
+            bsItems.filter(b => b.classification === 'debt').map(b => (
+              <p key={b.id}>{b.name}: {fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]] || 0)))}</p>
+            ))
+          }
+          <p className="font-bold border-t mt-1 pt-1">Total: {fmt(valuation.netDebt)}</p>
+        </div>
+      </Modal>
 
       {/* Footer */}
       <div className="bg-white border-t mt-12">
