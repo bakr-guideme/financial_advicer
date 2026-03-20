@@ -142,7 +142,7 @@ const PROXY = '/api/anthropic'
 
 async function extractPdfText(dataUrl: string): Promise<string> {
   const pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  pdfjsLib.GlobalWorkerOptions.workerSrc = ''
   
   const base64 = dataUrl.split(',')[1]
   const binaryStr = atob(base64)
