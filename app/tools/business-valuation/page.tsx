@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useCallback, useMemo, Fragment } from 'react'
+import * as pdfjsLib from 'pdfjs-dist'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BAKR BUSINESS VALUATION TOOL — Complete (Steps 1-9)
@@ -138,6 +139,25 @@ function genId(): string { return Math.random().toString(36).substring(2, 10) }
 
 const PROXY = '/api/anthropic'
 
+// ─── PDF TEXT EXTRACTION ────────────────────────────────────────────────────
+
+async function extractPdfText(dataUrl: string): Promise<string> {
+  const base64 = dataUrl.split(',')[1]
+  const binaryStr = atob(base64)
+  const bytes = new Uint8Array(binaryStr.length)
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+  
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
+  const pages: string[] = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+    const text = content.items.map((item: any) => ('str' in item ? item.str : '')).join(' ')
+    if (text.trim()) pages.push(`--- Page ${i} ---\n${text}`)
+  }
+  return pages.join('\n\n')
+}
+
 async function callOpus(system: string, user: string): Promise<string> {
   try {
     const res = await fetch(PROXY, {
@@ -162,6 +182,11 @@ function riskScoreToMultiple(score: number): number {
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Set up pdf.js worker
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+}
 
 export default function BusinessValuationTool() {
   // ── State ─────────────────────────────────────────────────────────────────
@@ -324,24 +349,43 @@ export default function BusinessValuationTool() {
   const parseFinancials = useCallback(async () => {
     if (uploadedFiles.length === 0) return
     setIsProcessing(true)
-    setProcessingMsg('Analysing uploaded financial documents — this may take 30-60 seconds...')
+    setProcessingMsg('Extracting text from documents...')
 
-    // Build content array with document attachments for the API
-    const contentParts: any[] = []
+    // Extract text from all uploaded PDFs client-side
+    let allText = ''
     for (const file of uploadedFiles) {
       if (file.data.startsWith('data:')) {
-        const base64Data = file.data.split(',')[1]
         const mimeMatch = file.data.match(/data:([^;]+);/)
-        const mediaType = mimeMatch ? mimeMatch[1] : 'application/pdf'
+        const mediaType = mimeMatch ? mimeMatch[1] : ''
         if (mediaType === 'application/pdf') {
-          contentParts.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } })
+          try {
+            const pdfText = await extractPdfText(file.data)
+            allText += `\n\n=== FILE: ${file.name} ===\n${pdfText}`
+          } catch (e: any) {
+            console.error('PDF extraction error:', e)
+            allText += `\n\n=== FILE: ${file.name} (could not extract text) ===`
+          }
         } else {
-          // For non-PDF (Excel/CSV), include as text description
-          contentParts.push({ type: 'text', text: `[Uploaded file: ${file.name} (${file.type})]` })
+          allText += `\n\n=== FILE: ${file.name} (non-PDF, please enter data manually) ===`
         }
       }
     }
-    contentParts.push({ type: 'text', text: `Parse ALL financial data from the uploaded document(s) into structured JSON. The document may be a combined financial report containing P&L, Balance Sheet, Notes, and Depreciation Schedules — extract everything relevant.
+
+    if (!allText.trim()) {
+      setProcessingMsg('Could not extract text from the uploaded files. Please enter data manually.')
+      setIsProcessing(false)
+      return
+    }
+
+    setProcessingMsg('Text extracted. Sending to AI for analysis — this may take 30-60 seconds...')
+    console.log('Extracted text length:', allText.length)
+    console.log('First 1000 chars:', allText.substring(0, 1000))
+
+    const prompt = `Here are the financial statements extracted from PDF:
+
+${allText}
+
+Parse ALL financial data into structured JSON. The document may be a combined financial report containing P&L, Balance Sheet, Notes, and Depreciation Schedules — extract everything relevant.
 
 Return ONLY valid JSON (no markdown fences, no explanation) in this exact format:
 {
@@ -365,7 +409,7 @@ CRITICAL RULES:
 - For the balance sheet: current_asset, fixed_asset, non_current_asset, current_liability, non_current_liability, equity
 - Liability amounts should be POSITIVE (they will be treated as liabilities by the system)
 - Include ALL years shown in the financial statements
-- Years should be ordered most recent first in the years array` })
+- Years should be ordered most recent first in the years array`
 
     try {
       const res = await fetch(PROXY, {
@@ -374,7 +418,7 @@ CRITICAL RULES:
           model: 'claude-sonnet-4-20250514',
           max_tokens: 16000,
           system: 'You are an expert Australian Chartered Accountant parsing financial statements into structured JSON. Return ONLY valid JSON, no markdown fences, no explanation text.',
-          messages: [{ role: 'user', content: contentParts }]
+          messages: [{ role: 'user', content: prompt }]
         })
       })
       if (!res.ok) {
@@ -395,7 +439,7 @@ CRITICAL RULES:
 
       const text = data.content?.[0]?.text || ''
       if (!text) {
-        setProcessingMsg('API returned empty response. The PDF may be too large. Try uploading just the P&L and Balance Sheet pages.')
+        setProcessingMsg('API returned empty response. Try again or enter data manually.')
         setIsProcessing(false)
         return
       }
