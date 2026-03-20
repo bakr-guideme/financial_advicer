@@ -43,7 +43,6 @@ function WorkingsBtn({ onClick, label }: { onClick: () => void; label?: string }
   )
 }
 
-// Inline calculation chip — shows a key number with click-to-explain
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BAKR BUSINESS VALUATION TOOL — Complete (Steps 1-9)
@@ -1023,28 +1022,141 @@ CRITICAL RULES:
               </div>
             )}
 
-            {bsItems.length > 0 && (
-              <div className="mt-4 grid grid-cols-3 gap-4">
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center cursor-pointer hover:border-blue-400 transition" onClick={m('bs-surplus-workings')}>
-                  <p className="text-[10px] text-blue-600 font-medium">Surplus Assets <span className="text-blue-400">(click for detail)</span></p>
-                  <p className="text-lg font-bold text-blue-800">{fmt(bsItems.filter(b => b.classification==='surplus').reduce((s,b) => s+(b.adjustedValue||(b.amounts[years[0]]||0)),0))}</p>
-                  {bsItems.filter(b => b.classification==='surplus').map(b => (
-                    <p key={b.id} className="text-[10px] text-blue-500">{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]]||0))}</p>
-                  ))}
+            {bsItems.length > 0 && (() => {
+              const yr = years[0] || ''
+              const getVal = (b: BSLineItem) => b.adjustedValue || (b.amounts[yr] || 0)
+              const operatingAssets = bsItems.filter(b => b.classification === 'operating' && !b.section.includes('liability') && b.section !== 'equity')
+              const operatingLiabs = bsItems.filter(b => b.classification === 'operating' && b.section.includes('liability'))
+              const surplusItems = bsItems.filter(b => b.classification === 'surplus')
+              const debtItems = bsItems.filter(b => b.classification === 'debt')
+              const equityItems = bsItems.filter(b => b.section === 'equity')
+              const goodwillItems = bsItems.filter(b => b.name.toLowerCase().includes('goodwill') || b.name.toLowerCase().includes('intangible'))
+              const totalOpAssets = operatingAssets.reduce((s, b) => s + getVal(b), 0)
+              const totalOpLiabs = operatingLiabs.reduce((s, b) => s + getVal(b), 0)
+              const netWorkingCap = totalOpAssets - totalOpLiabs
+              const totalSurplus = surplusItems.reduce((s, b) => s + getVal(b), 0)
+              const totalDebt = debtItems.reduce((s, b) => s + Math.abs(getVal(b)), 0)
+              return (
+                <div className="mt-6 space-y-4">
+                  {/* INCLUDED IN ENTERPRISE VALUE */}
+                  <div className="rounded-xl border-2 border-gray-200 overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-2 border-b">
+                      <p className="text-sm font-bold text-gray-700">✅ INCLUDED in Enterprise Value <span className="font-normal text-gray-500">(valued within the EBITDA multiple — no separate adjustment)</span></p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="text-[10px] text-gray-500 mb-2">These operating assets and liabilities are needed to earn the EBITDA. The multiple already prices them in. They are NOT added separately to avoid double-counting.</p>
+                      <table className="w-full text-xs">
+                        <tbody>
+                          <tr className="border-b border-gray-100"><td colSpan={2} className="py-1 font-semibold text-gray-600">Operating Assets</td></tr>
+                          {operatingAssets.map(b => (
+                            <tr key={b.id} className="border-b border-gray-50">
+                              <td className="py-1 pl-4 text-gray-600">{b.name}</td>
+                              <td className="py-1 text-right text-gray-700 font-medium">{fmt(getVal(b))}</td>
+                            </tr>
+                          ))}
+                          <tr className="border-b border-gray-200 bg-gray-50"><td className="py-1 pl-4 font-semibold text-gray-700">Total Operating Assets</td><td className="py-1 text-right font-bold text-gray-800">{fmt(totalOpAssets)}</td></tr>
+                          
+                          <tr className="border-b border-gray-100"><td colSpan={2} className="py-1 font-semibold text-gray-600 pt-2">Operating Liabilities</td></tr>
+                          {operatingLiabs.map(b => (
+                            <tr key={b.id} className="border-b border-gray-50">
+                              <td className="py-1 pl-4 text-gray-600">{b.name}</td>
+                              <td className="py-1 text-right text-red-600">({fmt(getVal(b))})</td>
+                            </tr>
+                          ))}
+                          <tr className="border-b border-gray-200 bg-gray-50"><td className="py-1 pl-4 font-semibold text-gray-700">Total Operating Liabilities</td><td className="py-1 text-right font-bold text-red-700">({fmt(totalOpLiabs)})</td></tr>
+                          
+                          <tr className="bg-gray-100"><td className="py-2 font-bold text-[#1F4E79]">Net Operating Position</td><td className="py-2 text-right font-bold text-[#1F4E79]">{fmt(netWorkingCap)}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* EXCLUDED — SURPLUS ASSETS */}
+                  <div className="rounded-xl border-2 border-blue-200 overflow-hidden">
+                    <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
+                      <p className="text-sm font-bold text-blue-800">⊕ SURPLUS ASSETS <span className="font-normal text-blue-600">(added to enterprise value — not needed for operations)</span></p>
+                    </div>
+                    <div className="px-4 py-3">
+                      {surplusItems.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">No items classified as surplus. Use the dropdown above to reclassify items like excess cash, investments, or director loans.</p>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {surplusItems.map(b => (
+                              <tr key={b.id} className="border-b border-blue-100">
+                                <td className="py-1 text-blue-800">{b.name}</td>
+                                <td className="py-1 text-right text-blue-800 font-medium">{fmt(getVal(b))}</td>
+                              </tr>
+                            ))}
+                            <tr className="bg-blue-100"><td className="py-2 font-bold text-blue-900">Total Surplus Assets</td><td className="py-2 text-right font-bold text-blue-900">{fmt(totalSurplus)}</td></tr>
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* EXCLUDED — DEBT */}
+                  <div className="rounded-xl border-2 border-red-200 overflow-hidden">
+                    <div className="bg-red-50 px-4 py-2 border-b border-red-200">
+                      <p className="text-sm font-bold text-red-800">⊖ INTEREST-BEARING DEBT <span className="font-normal text-red-600">(deducted from enterprise value — buyer expects seller to repay)</span></p>
+                    </div>
+                    <div className="px-4 py-3">
+                      {debtItems.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">No items classified as debt. Use the dropdown above to reclassify bank loans, HP, or finance leases.</p>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {debtItems.map(b => (
+                              <tr key={b.id} className="border-b border-red-100">
+                                <td className="py-1 text-red-800">{b.name}</td>
+                                <td className="py-1 text-right text-red-800 font-medium">({fmt(Math.abs(getVal(b)))})</td>
+                              </tr>
+                            ))}
+                            <tr className="bg-red-100"><td className="py-2 font-bold text-red-900">Total Debt</td><td className="py-2 text-right font-bold text-red-900">({fmt(totalDebt)})</td></tr>
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* GOODWILL NOTE */}
+                  {goodwillItems.length > 0 && (
+                    <div className="rounded-xl border-2 border-amber-200 overflow-hidden">
+                      <div className="bg-amber-50 px-4 py-2 border-b border-amber-200">
+                        <p className="text-sm font-bold text-amber-800">⚠️ EXISTING GOODWILL <span className="font-normal text-amber-600">(on balance sheet — will be replaced by derived goodwill from this valuation)</span></p>
+                      </div>
+                      <div className="px-4 py-3">
+                        {goodwillItems.map(b => (
+                          <p key={b.id} className="text-xs text-amber-700">{b.name}: {fmt(getVal(b))} — This existing goodwill arose from a prior acquisition and is replaced by the goodwill derived in this valuation.</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* EQUITY VALUE BUILD-UP PREVIEW */}
+                  <div className="rounded-xl border-2 border-[#1F4E79] overflow-hidden">
+                    <div className="bg-[#1F4E79] px-4 py-2">
+                      <p className="text-sm font-bold text-white">EQUITY VALUE BUILD-UP (preview — finalised in Step 8)</p>
+                    </div>
+                    <div className="px-4 py-3 bg-[#F0F4F8]">
+                      <table className="w-full text-sm">
+                        <tbody>
+                          <tr className="border-b border-gray-200"><td className="py-2 text-gray-600">Enterprise Value (FME × Multiple)</td><td className="py-2 text-right text-gray-500 italic">Calculated in Steps 6-7</td></tr>
+                          <tr className="border-b border-gray-200"><td className="py-2 text-blue-700">Plus: Surplus Assets</td><td className="py-2 text-right font-bold text-blue-700">{fmt(totalSurplus)}</td></tr>
+                          <tr className="border-b border-gray-200"><td className="py-2 text-red-700">Less: Interest-Bearing Debt</td><td className="py-2 text-right font-bold text-red-700">({fmt(totalDebt)})</td></tr>
+                          <tr className="border-b border-gray-200">
+                            <td className="py-2 text-gray-700">Working Capital Adjustment <HelpBtn onClick={m('working-capital-explained')} /></td>
+                            <td className="py-2 text-right"><input type="number" className="w-28 text-right text-sm border rounded px-2 py-1 bg-white" value={workingCapitalAdj||''} onChange={e => setWorkingCapitalAdj(parseFloat(e.target.value)||0)} placeholder="0" /></td>
+                          </tr>
+                          <tr className="bg-[#1F4E79] text-white"><td className="py-2 px-2 font-bold">= Equity Value</td><td className="py-2 px-2 text-right font-bold">Enterprise Value + {fmt(totalSurplus - totalDebt - workingCapitalAdj)}</td></tr>
+                        </tbody>
+                      </table>
+                      <p className="text-[10px] text-gray-500 mt-2">The net adjustment from balance sheet items is <strong>{fmt(totalSurplus - totalDebt - workingCapitalAdj)}</strong>. This will be added to (or deducted from) the enterprise value in Step 8.</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-center cursor-pointer hover:border-red-400 transition" onClick={m('bs-surplus-workings')}>
-                  <p className="text-[10px] text-red-600 font-medium">Net Debt <span className="text-red-400">(click for detail)</span></p>
-                  <p className="text-lg font-bold text-red-800">{fmt(bsItems.filter(b => b.classification==='debt').reduce((s,b) => s+Math.abs(b.adjustedValue||(b.amounts[years[0]]||0)),0))}</p>
-                  {bsItems.filter(b => b.classification==='debt').map(b => (
-                    <p key={b.id} className="text-[10px] text-red-500">{b.name}: {fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]]||0)))}</p>
-                  ))}
-                </div>
-                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-center">
-                  <p className="text-[10px] text-gray-600 font-medium">Working Capital Adj <HelpBtn onClick={m('working-capital-explained')} /></p>
-                  <input type="number" className="w-28 text-center text-sm border rounded px-2 py-1 bg-white mx-auto block mt-1" value={workingCapitalAdj||''} onChange={e => setWorkingCapitalAdj(parseFloat(e.target.value)||0)} placeholder="0" />
-                </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
           <div className="flex justify-between">
             <button className={bs} onClick={() => setStep(4)}>← Back</button>
@@ -1346,12 +1458,24 @@ CRITICAL RULES:
         <p><strong>Non-Operating:</strong> Interest income, dividend income, rental income from unrelated property. These relate to assets that are valued separately, not to the business operations.</p>
       </Modal>
 
-      <Modal open={activeModal==='balance-sheet-classification'} onClose={() => setActiveModal(null)} title="Balance Sheet Classification">
-        <p><strong>Why classify balance sheet items?</strong> Not every asset and liability affects the equity value in the same way.</p>
-        <p><strong>Operating:</strong> Assets and liabilities needed to run the business (trade debtors, stock, equipment, trade creditors, employee provisions). These are <em>already valued within the enterprise value</em> — the EBITDA multiple implicitly prices them in. Do NOT add them again.</p>
-        <p><strong>Surplus:</strong> Assets the business owns but doesn&apos;t need for operations (excess cash, investments, director loans, non-operating property). These are ADDED to the enterprise value because a buyer gets them as a bonus.</p>
-        <p><strong>Debt:</strong> Interest-bearing liabilities (bank loans, HP, finance leases). These are DEDUCTED from the enterprise value because a buyer typically expects the seller to repay debt on settlement.</p>
-        <p className="bg-amber-50 p-3 rounded-lg border border-amber-200"><strong>⚠️ Common mistake:</strong> Adding operating assets ON TOP of the enterprise value. This is double-counting. The plant &amp; equipment, stock, and debtors are already priced into the multiple. Only surplus assets get added.</p>
+      <Modal open={activeModal==='balance-sheet-classification'} onClose={() => setActiveModal(null)} title="Balance Sheet Classification Guide">
+        <p><strong>Every balance sheet item falls into one of three categories for valuation purposes:</strong></p>
+        <div className="bg-gray-50 p-3 rounded-lg mb-2">
+          <p className="font-bold text-gray-700">✅ Operating (default)</p>
+          <p>Assets and liabilities needed to run the business and earn the EBITDA. Examples: trade debtors, stock, plant &amp; equipment, trade creditors, employee provisions.</p>
+          <p className="text-amber-600 mt-1 text-xs">These are already valued WITHIN the enterprise value (the multiple prices them in). They appear in the &quot;Included in Enterprise Value&quot; section below the table for transparency, but are NOT added or deducted separately.</p>
+        </div>
+        <div className="bg-blue-50 p-3 rounded-lg mb-2">
+          <p className="font-bold text-blue-800">⊕ Surplus</p>
+          <p>Assets the business owns but does NOT need for its operations. Examples: excess cash (above what&apos;s needed for day-to-day operations), term deposits, investments, loans to directors, non-operating property.</p>
+          <p className="text-blue-600 mt-1 text-xs">These are ADDED to the enterprise value because a buyer gets them as a bonus on top of the operating business.</p>
+        </div>
+        <div className="bg-red-50 p-3 rounded-lg mb-2">
+          <p className="font-bold text-red-800">⊖ Debt</p>
+          <p>Interest-bearing borrowings: bank loans, hire purchase, finance leases, equipment finance. NOT trade creditors (those are operating).</p>
+          <p className="text-red-600 mt-1 text-xs">These are DEDUCTED from the enterprise value because a buyer typically expects debt to be repaid by the seller on settlement.</p>
+        </div>
+        <p className="bg-amber-50 p-3 rounded-lg border border-amber-200 mt-2"><strong>⚠️ Common question:</strong> &quot;Should I add the debtors and stock to the enterprise value?&quot; — No. They are operating items already valued within the EBITDA multiple. Adding them would be double-counting. However, if working capital is materially above or below a normal level for the business, you can make a working capital adjustment to account for the difference.</p>
       </Modal>
 
       <Modal open={activeModal==='working-capital-explained'} onClose={() => setActiveModal(null)} title="Working Capital Adjustment">
