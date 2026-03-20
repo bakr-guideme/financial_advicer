@@ -324,17 +324,74 @@ export default function BusinessValuationTool() {
   const parseFinancials = useCallback(async () => {
     if (uploadedFiles.length === 0) return
     setIsProcessing(true)
-    setProcessingMsg('Analysing uploaded financial documents...')
-    const sys = `You are an experienced Australian Chartered Accountant expert in business valuation. Parse financial statements into structured JSON. Categorise P&L items as: revenue, cos, other_income, opex, depreciation, amortisation, interest, or tax. Balance sheet as: current_asset, fixed_asset, non_current_asset, current_liability, non_current_liability, equity. All amounts positive. Return ONLY valid JSON.`
-    const usr = `Parse these financials. Files: ${uploadedFiles.map(f => f.name).join(', ')}. Return: {"plItems":[{"name":"...","category":"...","amounts":{"2024":0}}],"bsItems":[{"name":"...","section":"...","amounts":{"2024":0}}],"years":["2024","2023"]}`
+    setProcessingMsg('Analysing uploaded financial documents — this may take 30-60 seconds...')
+
+    // Build content array with document attachments for the API
+    const contentParts: any[] = []
+    for (const file of uploadedFiles) {
+      if (file.data.startsWith('data:')) {
+        const base64Data = file.data.split(',')[1]
+        const mimeMatch = file.data.match(/data:([^;]+);/)
+        const mediaType = mimeMatch ? mimeMatch[1] : 'application/pdf'
+        if (mediaType === 'application/pdf') {
+          contentParts.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } })
+        } else {
+          // For non-PDF (Excel/CSV), include as text description
+          contentParts.push({ type: 'text', text: `[Uploaded file: ${file.name} (${file.type})]` })
+        }
+      }
+    }
+    contentParts.push({ type: 'text', text: `Parse ALL financial data from the uploaded document(s) into structured JSON. The document may be a combined financial report containing P&L, Balance Sheet, Notes, and Depreciation Schedules — extract everything relevant.
+
+Return ONLY valid JSON (no markdown fences, no explanation) in this exact format:
+{
+  "plItems": [
+    {"name": "Line item name", "category": "revenue|cos|other_income|opex|depreciation|amortisation|interest|tax", "amounts": {"2024": 1000, "2023": 2000}}
+  ],
+  "bsItems": [
+    {"name": "Line item name", "section": "current_asset|fixed_asset|non_current_asset|current_liability|non_current_liability|equity", "amounts": {"2024": 1000, "2023": 2000}}
+  ],
+  "years": ["2024", "2023"]
+}
+
+CRITICAL RULES:
+- Extract EVERY line item from the P&L — do not summarise or skip items
+- Categorise: revenue, cos (cost of sales/direct expenses), other_income, opex (operating expenses), depreciation, amortisation, interest, tax
+- Depreciation MUST be category "depreciation", NOT opex
+- Interest income = other_income, Interest expense = interest
+- Income tax = tax
+- All expense amounts should be POSITIVE numbers (they represent costs incurred)
+- Items shown in brackets () in the source are negative — make them negative in the JSON
+- For the balance sheet: current_asset, fixed_asset, non_current_asset, current_liability, non_current_liability, equity
+- Liability amounts should be POSITIVE (they will be treated as liabilities by the system)
+- Include ALL years shown in the financial statements
+- Years should be ordered most recent first in the years array` })
+
     try {
-      const r = await callOpus(sys, usr)
-      const p = JSON.parse(r)
+      const res = await fetch(PROXY, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 16000,
+          system: 'You are an expert Australian Chartered Accountant parsing financial statements into structured JSON. Return ONLY valid JSON, no markdown fences, no explanation text.',
+          messages: [{ role: 'user', content: contentParts }]
+        })
+      })
+      const data = await res.json()
+      const text = data.content?.[0]?.text || ''
+      // Strip markdown fences if present
+      const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      const p = JSON.parse(clean)
       if (p.plItems) setPlItems(p.plItems.map((i: any) => ({ ...i, id: genId() })))
-      if (p.bsItems) setBsItems(p.bsItems.map((i: any) => ({ ...i, id: genId(), adjustedValue: 0, classification: 'operating', userNotes: '' })))
-      if (p.years) setFyConfigs(p.years.map((yr: string) => ({ year: yr, label: `FY${yr}`, isPartYear: false, months: 12 })))
-      setProcessingMsg('Parsed successfully. Review below.')
-    } catch { setProcessingMsg('Error parsing. Please enter data manually.') }
+      if (p.bsItems) setBsItems(p.bsItems.map((i: any) => ({ ...i, id: genId(), adjustedValue: 0, classification: i.section?.includes('liability') ? (i.name?.toLowerCase().includes('borrow') || i.name?.toLowerCase().includes('loan') || i.name?.toLowerCase().includes('finance') ? 'debt' : 'operating') : 'operating', userNotes: '' })))
+      if (p.years) {
+        setFyConfigs(p.years.map((yr: string) => ({ year: yr, label: `FY${yr}`, isPartYear: false, months: 12 })))
+      }
+      setProcessingMsg(`Parsed successfully: ${p.plItems?.length || 0} P&L items, ${p.bsItems?.length || 0} balance sheet items across ${p.years?.length || 0} years. Review below.`)
+    } catch (err: any) {
+      console.error('Parse error:', err)
+      setProcessingMsg('Error parsing financials. Please check the console for details or enter data manually.')
+    }
     setIsProcessing(false)
   }, [uploadedFiles])
 
@@ -503,7 +560,7 @@ export default function BusinessValuationTool() {
               <div><label className={lbl}>Business Name *</label><input className={inp} value={engagement.businessName} onChange={e => setEngagement(p => ({...p, businessName: e.target.value}))} placeholder="e.g. Smith & Co Pty Ltd" /></div>
               <div><label className={lbl}>ABN</label><input className={inp} value={engagement.abn} onChange={e => setEngagement(p => ({...p, abn: e.target.value}))} /></div>
               <div><label className={lbl}>Entity Type</label><select className={inp} value={engagement.entityType} onChange={e => setEngagement(p => ({...p, entityType: e.target.value}))}>{ENTITY_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
-              <div><label className={lbl}>Valuation Date *</label><input type="date" className={inp} value={engagement.valuationDate} onChange={e => setEngagement(p => ({...p, valuationDate: e.target.value}))} /></div>
+              <div><label className={lbl}>Valuation Date *</label><input type="text" className={inp} value={engagement.valuationDate} onChange={e => setEngagement(p => ({...p, valuationDate: e.target.value}))} placeholder="e.g. 30/06/2024" /></div>
               <div><label className={lbl}>Purpose</label><select className={inp} value={engagement.purpose} onChange={e => setEngagement(p => ({...p, purpose: e.target.value}))}>{PURPOSES.map(p => <option key={p}>{p}</option>)}</select></div>
               <div><label className={lbl}>Industry Sector *</label><select className={inp} value={engagement.industrySector} onChange={e => setEngagement(p => ({...p, industrySector: e.target.value}))}><option value="">Select...</option>{INDUSTRY_SECTORS.map(s => <option key={s}>{s}</option>)}</select></div>
               <div><label className={lbl}>Years Trading</label><input type="number" className={inp} value={engagement.yearsTrading||''} onChange={e => setEngagement(p => ({...p, yearsTrading: parseInt(e.target.value)||0}))} /></div>
@@ -555,21 +612,24 @@ export default function BusinessValuationTool() {
         {/* ═══ STEP 2 — DATA ═════════════════════════════════════════════ */}
         {step === 2 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Upload Documents</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              {[['pl','📄 P&L Statements','PDF/Excel per year'],['bs','📊 Balance Sheet','Most recent + prior years'],['gl','📒 General Ledger','Optional. Excel/CSV']].map(([t,label,desc]) => (
-                <div key={t} className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-[#2E75B6]">
-                  <p className="text-sm font-semibold text-[#1F4E79] mb-1">{label}</p>
-                  <p className="text-[10px] text-gray-500 mb-2">{desc}</p>
-                  <input type="file" accept=".pdf,.xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, t)} className="text-xs" />
-                </div>
-              ))}
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Upload Financial Statements</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="border-2 border-dashed border-[#2E75B6] rounded-xl p-4 bg-blue-50/30">
+                <p className="text-sm font-semibold text-[#1F4E79] mb-1">📄 Financial Statements</p>
+                <p className="text-[10px] text-gray-500 mb-2">Upload the accountant&apos;s report (P&amp;L, Balance Sheet, Notes — can be one combined PDF or separate files)</p>
+                <input type="file" accept=".pdf,.xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'financial')} className="text-xs" />
+              </div>
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-[#2E75B6]">
+                <p className="text-sm font-semibold text-[#1F4E79] mb-1">📒 General Ledger (Optional)</p>
+                <p className="text-[10px] text-gray-500 mb-2">GL exports improve normalisation analysis. Excel/CSV format.</p>
+                <input type="file" accept=".xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'gl')} className="text-xs" />
+              </div>
             </div>
             {uploadedFiles.length > 0 && (
               <div className="mb-3">
                 {uploadedFiles.map((f,i) => (
                   <div key={i} className="flex items-center gap-2 text-xs bg-gray-50 rounded px-3 py-1 mb-1">
-                    <span className="font-medium">{f.name}</span><span className="text-gray-400">({f.type})</span>
+                    <span className="font-medium">{f.name}</span><span className="text-gray-400">({f.type === 'financial' ? 'Financial Statements' : 'General Ledger'})</span>
                     <button onClick={() => setUploadedFiles(p => p.filter((_,j) => j!==i))} className="ml-auto text-red-400">✕</button>
                   </div>
                 ))}
