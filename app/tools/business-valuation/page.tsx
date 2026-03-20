@@ -23,22 +23,33 @@ function Modal({ open, onClose, title, children }: { open: boolean; onClose: () 
   )
 }
 
-// Blue "?" for novice explanations
+// Blue pill for novice explanations — large and obvious
 function HelpBtn({ onClick, label }: { onClick: () => void; label?: string }) {
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1 text-[10px] text-[#2E75B6] hover:text-[#1F4E79] font-medium transition" title={label || 'What is this?'}>
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-[#2E75B6] text-[9px] font-bold">?</span>
-      {label && <span className="underline decoration-dotted">{label}</span>}
+    <button onClick={onClick} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs text-[#2E75B6] hover:bg-blue-100 hover:border-blue-300 font-medium transition shadow-sm" title={label || 'What is this?'}>
+      <span className="text-sm">💡</span>
+      <span>{label || 'Help'}</span>
     </button>
   )
 }
 
-// Calculator icon for accountant workings
+// Green pill for accountant workings — large and obvious
 function WorkingsBtn({ onClick, label }: { onClick: () => void; label?: string }) {
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 font-medium transition" title={label || 'View workings'}>
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-emerald-500 text-[9px] font-bold">#</span>
-      {label && <span className="underline decoration-dotted">{label}</span>}
+    <button onClick={onClick} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 font-medium transition shadow-sm" title={label || 'View workings'}>
+      <span className="text-sm">🔢</span>
+      <span>{label || 'Workings'}</span>
+    </button>
+  )
+}
+
+// Inline calculation chip — shows a key number with click-to-explain
+function CalcChip({ value, label, onClick }: { value: string; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-[11px] text-gray-600 hover:bg-amber-50 hover:border-amber-300 transition cursor-pointer" title="Click for breakdown">
+      <span className="font-semibold text-gray-800">{value}</span>
+      <span className="text-gray-400">({label})</span>
+      <span className="text-amber-500 text-[10px]">▸</span>
     </button>
   )
 }
@@ -72,6 +83,8 @@ interface BSLineItem {
   adjustedValue: number
   classification: 'operating' | 'surplus' | 'debt' | 'equity_item'
   userNotes: string
+  children?: { name: string; amount: number }[]
+  expanded?: boolean
 }
 
 interface NormalisationItem {
@@ -459,7 +472,7 @@ Return ONLY valid JSON (no markdown fences, no explanation) in this exact format
     {"name": "Line item name", "category": "revenue|cos|other_income|opex|depreciation|amortisation|interest|tax", "amounts": {"2024": 1000, "2023": 2000}}
   ],
   "bsItems": [
-    {"name": "Line item name", "section": "current_asset|fixed_asset|non_current_asset|current_liability|non_current_liability|equity", "amounts": {"2024": 1000, "2023": 2000}}
+    {"name": "Line item name", "section": "current_asset|fixed_asset|non_current_asset|current_liability|non_current_liability|equity", "amounts": {"2024": 1000, "2023": 2000}, "children": [{"name": "Sub-item from Notes", "amount": 500}]}
   ],
   "years": ["2024", "2023"]
 }
@@ -474,6 +487,7 @@ CRITICAL RULES:
 - Items shown in brackets () in the source are negative — make them negative in the JSON
 - For the balance sheet: current_asset, fixed_asset, non_current_asset, current_liability, non_current_liability, equity
 - Liability amounts should be POSITIVE (they will be treated as liabilities by the system)
+- IMPORTANT: For each balance sheet item, if the Notes to the Financial Statements provide a breakdown (e.g. Note 4 Cash shows individual bank accounts, Note 5 shows Stock and WIP, Note 6 shows PP&E categories, Note 9 shows provision types), include these as "children" array with name and most recent year amount. This lets the user see what is inside each line.
 - Include ALL years shown in the financial statements
 - Years should be ordered most recent first in the years array`
 
@@ -512,7 +526,7 @@ CRITICAL RULES:
       console.log('Raw text (first 500):', text.substring(0, 500))
       const p = cleanJSON(text)
       if (p.plItems) setPlItems(p.plItems.map((i: any) => ({ ...i, id: genId() })))
-      if (p.bsItems) setBsItems(p.bsItems.map((i: any) => ({ ...i, id: genId(), adjustedValue: 0, classification: i.section?.includes('liability') ? (i.name?.toLowerCase().includes('borrow') || i.name?.toLowerCase().includes('loan') || i.name?.toLowerCase().includes('finance') ? 'debt' : 'operating') : 'operating', userNotes: '' })))
+      if (p.bsItems) setBsItems(p.bsItems.map((i: any) => ({ ...i, id: genId(), adjustedValue: 0, classification: i.section?.includes('liability') ? (i.name?.toLowerCase().includes('borrow') || i.name?.toLowerCase().includes('loan') || i.name?.toLowerCase().includes('finance') ? 'debt' : 'operating') : 'operating', userNotes: '', children: i.children || [], expanded: false })))
       if (p.years) {
         setFyConfigs(p.years.map((yr: string) => ({ year: yr, label: `FY${yr}`, isPartYear: false, months: 12 })))
       }
@@ -958,34 +972,59 @@ CRITICAL RULES:
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead><tr className="bg-[#1F4E79] text-white">
-                    <th className="text-left px-3 py-2 min-w-[180px]">Item</th>
+                    <th className="text-left px-3 py-2 min-w-[220px]">Item</th>
                     <th className="text-left px-2 py-2">Section</th>
                     <th className="text-right px-3 py-2">Book Value</th>
                     <th className="text-right px-3 py-2">Adjusted Value</th>
-                    <th className="text-left px-2 py-2">Classification</th>
+                    <th className="text-left px-2 py-2">Classification <HelpBtn onClick={m('balance-sheet-classification')} /></th>
                     <th className="text-left px-2 py-2 min-w-[120px]">Notes</th>
                   </tr></thead>
                   <tbody>
                     {bsItems.map(item => {
                       const latestYr = years[0] || ''
                       const bookVal = item.amounts[latestYr] || 0
+                      const hasChildren = item.children && item.children.length > 0
                       return (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-3 py-1.5 font-medium text-gray-800">{item.name}</td>
-                          <td className="px-2 py-1.5 text-gray-500 text-[10px]">{item.section.replace(/_/g,' ')}</td>
-                          <td className="px-3 py-1.5 text-right text-gray-600">{fmt(bookVal)}</td>
-                          <td className="px-3 py-1.5 text-right">
-                            <input type="number" className="w-24 text-right text-xs border rounded px-2 py-1 bg-white" value={item.adjustedValue || bookVal || ''} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,adjustedValue:parseFloat(e.target.value)||0}:b))} />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <select className="text-[10px] border rounded px-1 py-0.5 bg-white" value={item.classification} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,classification:e.target.value as any}:b))}>
-                              <option value="operating">Operating</option>
-                              <option value="surplus">Surplus</option>
-                              <option value="debt">Debt</option>
-                            </select>
-                          </td>
-                          <td className="px-2 py-1.5"><input className="w-full text-[10px] border rounded px-1 py-0.5 bg-white" value={item.userNotes} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,userNotes:e.target.value}:b))} placeholder="Notes..." /></td>
-                        </tr>
+                        <Fragment key={item.id}>
+                          <tr className={`border-b border-gray-100 hover:bg-gray-50 ${item.classification === 'surplus' ? 'bg-blue-50/30' : item.classification === 'debt' ? 'bg-red-50/30' : ''}`}>
+                            <td className="px-3 py-1.5">
+                              <div className="flex items-center gap-1">
+                                {hasChildren && (
+                                  <button onClick={() => setBsItems(p => p.map(b => b.id===item.id?{...b,expanded:!b.expanded}:b))} className="text-gray-400 hover:text-[#1F4E79] text-sm w-5 shrink-0">
+                                    {item.expanded ? '▼' : '▶'}
+                                  </button>
+                                )}
+                                {!hasChildren && <span className="w-5 shrink-0" />}
+                                <span className="font-medium text-gray-800">{item.name}</span>
+                                {hasChildren && <span className="text-[10px] text-gray-400 ml-1">({item.children?.length} items)</span>}
+                              </div>
+                            </td>
+                            <td className="px-2 py-1.5 text-gray-500 text-[10px]">{item.section.replace(/_/g,' ')}</td>
+                            <td className="px-3 py-1.5 text-right text-gray-600">{fmt(bookVal)}</td>
+                            <td className="px-3 py-1.5 text-right">
+                              <input type="number" className="w-24 text-right text-xs border rounded px-2 py-1 bg-white" value={item.adjustedValue || bookVal || ''} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,adjustedValue:parseFloat(e.target.value)||0}:b))} />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <select className={`text-[10px] border rounded px-1 py-0.5 ${item.classification === 'surplus' ? 'bg-blue-100 border-blue-300 text-blue-700 font-semibold' : item.classification === 'debt' ? 'bg-red-100 border-red-300 text-red-700 font-semibold' : 'bg-white'}`} value={item.classification} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,classification:e.target.value as any}:b))}>
+                                <option value="operating">Operating</option>
+                                <option value="surplus">⊕ Surplus</option>
+                                <option value="debt">⊖ Debt</option>
+                              </select>
+                            </td>
+                            <td className="px-2 py-1.5"><input className="w-full text-[10px] border rounded px-1 py-0.5 bg-white" value={item.userNotes} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,userNotes:e.target.value}:b))} placeholder="Notes..." /></td>
+                          </tr>
+                          {/* Expandable children sub-items */}
+                          {item.expanded && item.children && item.children.map((child, ci) => (
+                            <tr key={`${item.id}-child-${ci}`} className="bg-gray-50/70 border-b border-gray-50">
+                              <td className="px-3 py-1 pl-10 text-[10px] text-gray-500 italic">{child.name}</td>
+                              <td></td>
+                              <td className="px-3 py-1 text-right text-[10px] text-gray-400">{fmt(child.amount)}</td>
+                              <td></td>
+                              <td></td>
+                              <td></td>
+                            </tr>
+                          ))}
+                        </Fragment>
                       )
                     })}
                   </tbody>
@@ -995,16 +1034,22 @@ CRITICAL RULES:
 
             {bsItems.length > 0 && (
               <div className="mt-4 grid grid-cols-3 gap-4">
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center">
-                  <p className="text-[10px] text-blue-600 font-medium">Surplus Assets</p>
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center cursor-pointer hover:border-blue-400 transition" onClick={m('bs-surplus-workings')}>
+                  <p className="text-[10px] text-blue-600 font-medium">Surplus Assets <span className="text-blue-400">(click for detail)</span></p>
                   <p className="text-lg font-bold text-blue-800">{fmt(bsItems.filter(b => b.classification==='surplus').reduce((s,b) => s+(b.adjustedValue||(b.amounts[years[0]]||0)),0))}</p>
+                  {bsItems.filter(b => b.classification==='surplus').map(b => (
+                    <p key={b.id} className="text-[10px] text-blue-500">{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]]||0))}</p>
+                  ))}
                 </div>
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-center">
-                  <p className="text-[10px] text-red-600 font-medium">Net Debt</p>
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-center cursor-pointer hover:border-red-400 transition" onClick={m('bs-surplus-workings')}>
+                  <p className="text-[10px] text-red-600 font-medium">Net Debt <span className="text-red-400">(click for detail)</span></p>
                   <p className="text-lg font-bold text-red-800">{fmt(bsItems.filter(b => b.classification==='debt').reduce((s,b) => s+Math.abs(b.adjustedValue||(b.amounts[years[0]]||0)),0))}</p>
+                  {bsItems.filter(b => b.classification==='debt').map(b => (
+                    <p key={b.id} className="text-[10px] text-red-500">{b.name}: {fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]]||0)))}</p>
+                  ))}
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-center">
-                  <p className="text-[10px] text-gray-600 font-medium">Working Capital Adj</p>
+                  <p className="text-[10px] text-gray-600 font-medium">Working Capital Adj <HelpBtn onClick={m('working-capital-explained')} /></p>
                   <input type="number" className="w-28 text-center text-sm border rounded px-2 py-1 bg-white mx-auto block mt-1" value={workingCapitalAdj||''} onChange={e => setWorkingCapitalAdj(parseFloat(e.target.value)||0)} placeholder="0" />
                 </div>
               </div>
