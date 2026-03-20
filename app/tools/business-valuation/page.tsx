@@ -44,15 +44,6 @@ function WorkingsBtn({ onClick, label }: { onClick: () => void; label?: string }
 }
 
 // Inline calculation chip — shows a key number with click-to-explain
-function CalcChip({ value, label, onClick }: { value: string; label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-[11px] text-gray-600 hover:bg-amber-50 hover:border-amber-300 transition cursor-pointer" title="Click for breakdown">
-      <span className="font-semibold text-gray-800">{value}</span>
-      <span className="text-gray-400">({label})</span>
-      <span className="text-amber-500 text-[10px]">▸</span>
-    </button>
-  )
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BAKR BUSINESS VALUATION TOOL — Complete (Steps 1-9)
