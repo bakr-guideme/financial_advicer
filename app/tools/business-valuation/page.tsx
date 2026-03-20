@@ -136,7 +136,7 @@ function genId(): string { return Math.random().toString(36).substring(2, 10) }
 
 // ─── OPUS ───────────────────────────────────────────────────────────────────
 
-const PROXY = 'https://us-central1-document-generator-system.cloudfunctions.net/anthropicProxy'
+const PROXY = '/api/anthropic'
 
 async function callOpus(system: string, user: string): Promise<string> {
   try {
