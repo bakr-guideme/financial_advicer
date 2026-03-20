@@ -377,8 +377,29 @@ CRITICAL RULES:
           messages: [{ role: 'user', content: contentParts }]
         })
       })
+      if (!res.ok) {
+        const errText = await res.text()
+        console.error('API fetch error:', res.status, errText)
+        setProcessingMsg(`API error (${res.status}): ${errText.substring(0, 300)}`)
+        setIsProcessing(false)
+        return
+      }
       const data = await res.json()
+      console.log('API response:', JSON.stringify(data).substring(0, 500))
+      
+      if (data.error) {
+        setProcessingMsg(`API error: ${data.error}${data.details ? ' — ' + data.details.substring(0, 200) : ''}`)
+        setIsProcessing(false)
+        return
+      }
+
       const text = data.content?.[0]?.text || ''
+      if (!text) {
+        setProcessingMsg('API returned empty response. The PDF may be too large. Try uploading just the P&L and Balance Sheet pages.')
+        setIsProcessing(false)
+        return
+      }
+      console.log('Raw text (first 500):', text.substring(0, 500))
       // Strip markdown fences if present
       const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       const p = JSON.parse(clean)
@@ -390,7 +411,7 @@ CRITICAL RULES:
       setProcessingMsg(`Parsed successfully: ${p.plItems?.length || 0} P&L items, ${p.bsItems?.length || 0} balance sheet items across ${p.years?.length || 0} years. Review below.`)
     } catch (err: any) {
       console.error('Parse error:', err)
-      setProcessingMsg('Error parsing financials. Please check the console for details or enter data manually.')
+      setProcessingMsg(`Error parsing: ${err.message}. Check browser console for details. You can enter data manually below.`)
     }
     setIsProcessing(false)
   }, [uploadedFiles])
