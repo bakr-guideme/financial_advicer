@@ -22,6 +22,7 @@ const businessTools = [
   { name: "Budget Builder", href: "/tools/budget-builder-myob", desc: "MYOB export to formatted budget" },
   { name: "Trust Distribution Analyser", href: "/tools/trust-distribution", desc: "CGT streaming, Div 6AA, s100A, minutes" },
   { name: "Super Contributions Optimiser", href: "/tools/super-optimiser", desc: "CC, NCC, spouse, downsizer, CGT cap" },
+  { name: "Dividend Declaration Toolkit", href: "/tools/dividend-toolkit", desc: "Profits test, franking, trust streaming, compliance" },
   { name: "Business Valuation", href: "/tools/business-valuation", desc: "CFME valuation with professional report" },
 ];
 
