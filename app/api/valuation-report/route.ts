@@ -11,11 +11,9 @@ const BLUE = '2E75B6'
 const LIGHT = 'F0F4F8'
 const GREEN_BG = 'E8F5E9'
 const RED_BG = 'FFEBEE'
-const AMBER_BG = 'FFF8E1'
 
 const border = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' }
 const borders = { top: border, bottom: border, left: border, right: border }
-const noBorders = { top: { style: BorderStyle.NONE, size: 0 }, bottom: { style: BorderStyle.NONE, size: 0 }, left: { style: BorderStyle.NONE, size: 0 }, right: { style: BorderStyle.NONE, size: 0 } }
 const cellPad = { top: 60, bottom: 60, left: 100, right: 100 }
 const TW = 9360 // Table width for A4 with 1" margins
 
