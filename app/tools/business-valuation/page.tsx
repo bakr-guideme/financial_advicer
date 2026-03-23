@@ -1402,7 +1402,6 @@ CRITICAL RULES:
                 </div>
               )})}
             </div>
-            </div>
 
             <div className="mt-6 grid grid-cols-3 gap-4">
               <div className="p-4 rounded-xl bg-gray-100 text-center">
