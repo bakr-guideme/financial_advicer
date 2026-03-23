@@ -1363,7 +1363,7 @@ CRITICAL RULES:
                 <p className="text-xs text-gray-600 mt-1">Drag the two thumbs on each slider to set a risk range. The <strong className="text-emerald-700">green thumb</strong> is your optimistic (best-case) score. The <strong className="text-orange-700">orange thumb</strong> is your conservative (cautious) score. The shaded area between them is the range of uncertainty.</p>
               </div>
 
-              <style>{`
+              <style dangerouslySetInnerHTML={{ __html: `
                 .range-track { position: relative; height: 36px; }
                 .range-track input[type=range] { position: absolute; top: 8px; left: 0; width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; z-index: 2; margin: 0; }
                 .range-track input[type=range]::-webkit-slider-runnable-track { height: 6px; background: transparent; }
@@ -1375,7 +1375,7 @@ CRITICAL RULES:
                 .range-track .range-high::-moz-range-thumb { background: #ea580c; }
                 .range-track input[type=range]::-moz-range-track { height: 6px; background: transparent; }
                 .range-fill { position: absolute; top: 11px; height: 6px; border-radius: 3px; z-index: 1; }
-              `}</style>
+              ` }} />
 
               {riskFactors.map(f => {
                 const pctLow = f.scoreLow / 10 * 100
