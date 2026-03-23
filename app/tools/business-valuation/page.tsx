@@ -442,6 +442,7 @@ export default function BusinessValuationTool() {
 
     // Extract text from all uploaded PDFs client-side
     let allText = ''
+    const failedFiles: string[] = []
     for (const file of uploadedFiles) {
       if (file.data.startsWith('data:')) {
         const mimeMatch = file.data.match(/data:([^;]+);/)
@@ -449,15 +450,27 @@ export default function BusinessValuationTool() {
         if (mediaType === 'application/pdf') {
           try {
             const pdfText = await extractPdfText(file.data)
-            allText += `\n\n=== FILE: ${file.name} ===\n${pdfText}`
+            // Check if extracted text is mostly garbled (encoded fonts)
+            const readableChars = pdfText.replace(/[^a-zA-Z0-9\s.,;:$%()-]/g, '')
+            if (readableChars.length < pdfText.length * 0.3) {
+              failedFiles.push(file.name)
+              allText += `\n\n=== FILE: ${file.name} (text unreadable — encoded fonts) ===`
+            } else {
+              allText += `\n\n=== FILE: ${file.name} ===\n${pdfText}`
+            }
           } catch (e: any) {
             console.error('PDF extraction error:', e)
+            failedFiles.push(file.name)
             allText += `\n\n=== FILE: ${file.name} (could not extract text) ===`
           }
         } else {
           allText += `\n\n=== FILE: ${file.name} (non-PDF, please enter data manually) ===`
         }
       }
+    }
+
+    if (failedFiles.length > 0) {
+      setProcessingMsg(`⚠️ Could not read text from: ${failedFiles.join(', ')}. These files may use embedded fonts that cannot be extracted. Data from readable files will be parsed — you can add missing years manually afterwards.`)
     }
 
     if (!allText.trim()) {
@@ -630,6 +643,38 @@ CRITICAL RULES:
   }, [years, ebitdaByYear, normalisedEbitdaByYear, engagement, fme])
 
   // ── Manual entry helpers ──────────────────────────────────────────────────
+  const generateDocx = useCallback(async () => {
+    setIsProcessing(true)
+    setProcessingMsg('Generating DOCX report...')
+    try {
+      const payload = {
+        engagement, years, ebitdaByYear, normItems, normalisedEbitdaByYear, weights, fme,
+        riskFactors, compositeScoreLow, compositeScoreHigh, multipleLow, multipleHigh,
+        valuation, bsItems: bsItems.map(b => ({ ...b })), sensitivity, industryAnalysis, discounts, aiWeightReasoning
+      }
+      const res = await fetch('/api/valuation-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) { const e = await res.text(); throw new Error(e) }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${(engagement.businessName || 'Valuation').replace(/[^a-zA-Z0-9 ]/g, '')}_Valuation_Report.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setProcessingMsg('Report downloaded successfully.')
+    } catch (err: any) {
+      console.error('DOCX error:', err)
+      setProcessingMsg(`Error generating report: ${err.message}`)
+    }
+    setIsProcessing(false)
+  }, [engagement, years, ebitdaByYear, normItems, normalisedEbitdaByYear, weights, fme, riskFactors, compositeScoreLow, compositeScoreHigh, multipleLow, multipleHigh, valuation, bsItems, sensitivity, industryAnalysis, discounts, aiWeightReasoning])
+
   const addFY = useCallback(() => {
     const next = fyConfigs.length > 0 ? String(Math.max(...fyConfigs.map(f => parseInt(f.year))) + 1) : String(new Date().getFullYear())
     setFyConfigs(prev => [...prev, { year: next, label: `FY${next}`, isPartYear: false, months: 12 }])
@@ -930,7 +975,7 @@ CRITICAL RULES:
           <div className={sc}>
             <div className="flex items-center justify-between mb-4">
               <div><h2 className="text-lg font-bold text-[#1F4E79]">Normalisation Adjustments <HelpBtn onClick={m('what-is-normalisation')} label="What is this?" /> <HelpBtn onClick={m('norm-categories')} label="Categories explained" /></h2><p className="text-xs text-gray-500">Adjust for discretionary, non-recurring and personal expenses</p></div>
-              <button className={bp} onClick={analyseNormalisation} disabled={isProcessing}>{isProcessing ? '⏳...' : '🔍 Seek Items to Exclude'}</button>
+              <button className={bp} onClick={analyseNormalisation} disabled={isProcessing}>{isProcessing ? '⏳ Working...' : '🔍 Seek Items to Exclude'}</button>
             </div>
             {processingMsg && step===4 && <p className="text-sm text-[#2E75B6] mb-3">{processingMsg}</p>}
             <div className="mb-3 p-3 bg-gray-50 rounded-lg border flex gap-2 flex-wrap">
@@ -1266,7 +1311,7 @@ CRITICAL RULES:
             <div className="mb-4">
               <label className={lbl}>Context for any unusual years</label>
               <textarea className={ta} rows={3} value={weightContext} onChange={e => setWeightContext(e.target.value)} placeholder="e.g. FY2023 EBITDA was lower because we lost a major customer who has since been replaced..." />
-              <button className={bp+" mt-2"} onClick={analyseWeighting} disabled={isProcessing}>{isProcessing ? '⏳...' : '🤖 AI Weighting Analysis'}</button>
+              <button className={bp+" mt-2"} onClick={analyseWeighting} disabled={isProcessing}>{isProcessing ? '⏳ Working...' : 'Weighting Analysis'}</button>
             </div>
 
             {aiWeightReasoning && <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4"><p className="text-xs text-blue-800 font-medium mb-1">AI Recommendation:</p><p className="text-xs text-blue-700">{aiWeightReasoning}</p></div>}
@@ -1309,46 +1354,66 @@ CRITICAL RULES:
           <div className={sc}>
             <div className="flex items-center justify-between mb-4">
               <div><h2 className="text-lg font-bold text-[#1F4E79]">Risk Analysis & EBITDA Multiple <HelpBtn onClick={m('risk-scoring-explained')} label="How this works" /> <WorkingsBtn onClick={m('multiple-workings')} label="View workings" /></h2><p className="text-xs text-gray-500">Score each factor 0 (lowest risk) to 10 (highest risk)</p></div>
-              <button className={bp} onClick={analyseRisk} disabled={isProcessing}>{isProcessing ? '⏳...' : '🤖 AI Risk Scoring'}</button>
+              <button className={bp} onClick={analyseRisk} disabled={isProcessing}>{isProcessing ? '⏳ Working...' : 'Risk Scoring'}</button>
             </div>
             
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-[#F0F4F8] border border-[#2E75B6] mb-2">
                 <p className="text-xs text-[#1F4E79] font-semibold">How to score each factor:</p>
-                <p className="text-xs text-gray-600 mt-1">For each risk factor below, drag both sliders to set a range. The <strong>Low (optimistic)</strong> slider is your best-case view. The <strong>High (conservative)</strong> slider is your cautious view. Sliding <strong>left = less risky</strong> (higher multiple, higher value). Sliding <strong>right = more risky</strong> (lower multiple, lower value).</p>
+                <p className="text-xs text-gray-600 mt-1">Drag the two thumbs on each slider to set a risk range. The <strong className="text-emerald-700">green thumb</strong> is your optimistic (best-case) score. The <strong className="text-orange-700">orange thumb</strong> is your conservative (cautious) score. The shaded area between them is the range of uncertainty.</p>
               </div>
-              {riskFactors.map(f => (
+
+              <style>{`
+                .range-track { position: relative; height: 36px; }
+                .range-track input[type=range] { position: absolute; top: 8px; left: 0; width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; z-index: 2; margin: 0; }
+                .range-track input[type=range]::-webkit-slider-runnable-track { height: 6px; background: transparent; }
+                .range-track input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; cursor: pointer; pointer-events: all; position: relative; z-index: 3; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+                .range-track .range-low::-webkit-slider-thumb { background: #059669; }
+                .range-track .range-high::-webkit-slider-thumb { background: #ea580c; }
+                .range-track input[type=range]::-moz-range-thumb { height: 18px; width: 18px; border-radius: 50%; cursor: pointer; pointer-events: all; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+                .range-track .range-low::-moz-range-thumb { background: #059669; }
+                .range-track .range-high::-moz-range-thumb { background: #ea580c; }
+                .range-track input[type=range]::-moz-range-track { height: 6px; background: transparent; }
+                .range-fill { position: absolute; top: 11px; height: 6px; border-radius: 3px; z-index: 1; }
+              `}</style>
+
+              {riskFactors.map(f => {
+                const pctLow = f.scoreLow / 10 * 100
+                const pctHigh = f.scoreHigh / 10 * 100
+                return (
                 <div key={f.id} className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
                   <p className="font-bold text-sm text-[#1F4E79] mb-1">{f.name}</p>
                   <p className="text-xs text-gray-600 mb-1">{f.description}</p>
-                  <p className="text-[10px] text-[#2E75B6] font-medium mb-2">{f.guidance}</p>
-                  {f.aiReasoning && <p className="text-xs text-blue-700 bg-blue-50 rounded p-2 mb-3 border border-blue-200">🤖 {f.aiReasoning}</p>}
-                  <div className="flex gap-6">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] font-semibold text-emerald-700">Low (optimistic)</label>
-                        <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 rounded">{f.scoreLow}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-emerald-600 w-12">Low risk</span>
-                        <input type="range" className="flex-1 accent-emerald-600" min={0} max={10} step={0.5} value={f.scoreLow} onChange={e => setRiskFactors(p => p.map(rf => rf.id===f.id?{...rf,scoreLow:parseFloat(e.target.value)}:rf))} />
-                        <span className="text-[9px] text-red-500 w-12 text-right">High risk</span>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] font-semibold text-orange-700">High (conservative)</label>
-                        <span className="text-sm font-bold text-orange-700 bg-orange-50 px-2 rounded">{f.scoreHigh}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-emerald-600 w-12">Low risk</span>
-                        <input type="range" className="flex-1 accent-orange-600" min={0} max={10} step={0.5} value={f.scoreHigh} onChange={e => setRiskFactors(p => p.map(rf => rf.id===f.id?{...rf,scoreHigh:parseFloat(e.target.value)}:rf))} />
-                        <span className="text-[9px] text-red-500 w-12 text-right">High risk</span>
-                      </div>
-                    </div>
+                  {f.aiReasoning && <p className="text-xs text-blue-700 bg-blue-50 rounded p-2 mb-3 border border-blue-200">{f.aiReasoning}</p>}
+                  
+                  {/* Score display */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Optimistic: {f.scoreLow}</span>
+                    <span className="text-xs text-gray-400">Drag thumbs to adjust range</span>
+                    <span className="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded">Conservative: {f.scoreHigh}</span>
+                  </div>
+
+                  {/* Dual-thumb slider */}
+                  <div className="range-track">
+                    {/* Track background */}
+                    <div className="absolute top-[11px] left-0 right-0 h-1.5 rounded-full bg-gray-200" />
+                    {/* Filled range between thumbs */}
+                    <div className="range-fill bg-gradient-to-r from-emerald-400 to-orange-400 opacity-40" style={{ left: `${pctLow}%`, width: `${pctHigh - pctLow}%` }} />
+                    {/* Low thumb (green) */}
+                    <input type="range" className="range-low" min={0} max={10} step={0.5} value={f.scoreLow}
+                      onChange={e => { const v = parseFloat(e.target.value); setRiskFactors(p => p.map(rf => rf.id===f.id ? {...rf, scoreLow: v, scoreHigh: Math.max(rf.scoreHigh, v)} : rf)) }} />
+                    {/* High thumb (orange) */}
+                    <input type="range" className="range-high" min={0} max={10} step={0.5} value={f.scoreHigh}
+                      onChange={e => { const v = parseFloat(e.target.value); setRiskFactors(p => p.map(rf => rf.id===f.id ? {...rf, scoreHigh: v, scoreLow: Math.min(rf.scoreLow, v)} : rf)) }} />
+                  </div>
+
+                  {/* Scale labels */}
+                  <div className="flex justify-between text-[9px] text-gray-400 mt-0.5 px-1">
+                    <span>0 — Low risk</span><span>5 — Moderate</span><span>10 — High risk</span>
                   </div>
                 </div>
-              ))}
+              )})}
+            </div>
             </div>
 
             <div className="mt-6 grid grid-cols-3 gap-4">
@@ -1715,9 +1780,13 @@ CRITICAL RULES:
           </div>
 
           {/* Phase 3 note */}
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <p className="text-sm font-semibold text-amber-800">📄 DOCX Report Download — Coming Soon</p>
-            <p className="text-xs text-amber-700 mt-1">A downloadable Word document containing all of the above in a formatted, client-ready report will be available in the next update.</p>
+          <div className="p-6 bg-[#F0F4F8] border-2 border-[#2E75B6] rounded-2xl text-center">
+            <p className="text-lg font-bold text-[#1F4E79] mb-2">📄 Download Valuation Report</p>
+            <p className="text-xs text-gray-500 mb-4">Generate a professional Word document containing all calculations, tables, and disclaimers shown above.</p>
+            <button className={bp + " text-base px-8 py-3"} onClick={generateDocx} disabled={isProcessing}>
+              {isProcessing ? '⏳ Generating...' : '📥 Download DOCX Report'}
+            </button>
+            {processingMsg && step === 9 && <p className="text-sm text-[#2E75B6] mt-3">{processingMsg}</p>}
           </div>
 
           <div className="flex justify-start">
