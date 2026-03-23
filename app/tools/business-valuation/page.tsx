@@ -71,7 +71,7 @@ interface BSLineItem {
   section: 'current_asset' | 'fixed_asset' | 'non_current_asset' | 'current_liability' | 'non_current_liability' | 'equity'
   amounts: Record<string, number>
   adjustedValue: number
-  classification: 'operating' | 'surplus' | 'debt' | 'equity_item'
+  classification: 'in_ev' | 'transfer_asset' | 'transfer_liability' | 'surplus' | 'debt' | 'goodwill'
   userNotes: string
   children?: { name: string; amount: number }[]
   expanded?: boolean
@@ -282,7 +282,6 @@ export default function BusinessValuationTool() {
 
   // Step 8 state
   const [discounts, setDiscounts] = useState<DiscountConfig>(defaultDiscount)
-  const [workingCapitalAdj, setWorkingCapitalAdj] = useState(0)
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const years = useMemo(() => fyConfigs.map(f => f.year), [fyConfigs])
@@ -350,24 +349,28 @@ export default function BusinessValuationTool() {
   const valuation = useMemo(() => {
     const evLow = fme * multipleLow
     const evHigh = fme * multipleHigh
-
-    // Balance sheet analysis
-    let surplusAssets = 0, netDebt = 0, totalTangibleAssets = 0
     const latestYr = years[0] || ''
+
+    // Balance sheet analysis with new classification system
+    let transferAssets = 0, transferLiabilities = 0, surplusAssets = 0, netDebt = 0, inEvAssets = 0
+
     for (const item of bsItems) {
       const val = item.adjustedValue || (item.amounts[latestYr] || 0)
-      if (item.classification === 'surplus') surplusAssets += val
-      else if (item.classification === 'debt') netDebt += Math.abs(val)
-      else if (item.classification === 'operating') {
-        if (item.section === 'fixed_asset' || item.section === 'current_asset') totalTangibleAssets += val
+      switch (item.classification) {
+        case 'in_ev': inEvAssets += val; break
+        case 'transfer_asset': transferAssets += val; break
+        case 'transfer_liability': transferLiabilities += Math.abs(val); break
+        case 'surplus': surplusAssets += val; break
+        case 'debt': netDebt += Math.abs(val); break
+        // 'goodwill' — excluded, replaced by derived goodwill
       }
     }
 
-    const adjEvLow = evLow - workingCapitalAdj
-    const adjEvHigh = evHigh - workingCapitalAdj
+    const netTransferring = transferAssets - transferLiabilities
+    const netBsAdjustment = netTransferring + surplusAssets - netDebt
 
-    const eqLow = adjEvLow + surplusAssets - netDebt
-    const eqHigh = adjEvHigh + surplusAssets - netDebt
+    const eqLow = evLow + netBsAdjustment
+    const eqHigh = evHigh + netBsAdjustment
     const eqMid = (eqLow + eqHigh) / 2
 
     // Apply discounts
@@ -379,8 +382,8 @@ export default function BusinessValuationTool() {
     const finalHigh = eqHigh * discFactor
     const finalMid = (finalLow + finalHigh) / 2
 
-    // Equipment floor check
-    const equipmentFloor = totalTangibleAssets
+    // Equipment floor check — total realisable value of all tangible assets
+    const equipmentFloor = inEvAssets
     const floorExceeded = equipmentFloor > evHigh && equipmentFloor > 0
 
     // Implied revenue multiple
@@ -389,11 +392,12 @@ export default function BusinessValuationTool() {
     const impliedRevMultHigh = latestRevenue > 0 ? evHigh / latestRevenue : 0
 
     return {
-      evLow, evHigh, adjEvLow, adjEvHigh, surplusAssets, netDebt, workingCapitalAdj,
+      evLow, evHigh, transferAssets, transferLiabilities, netTransferring,
+      surplusAssets, netDebt, netBsAdjustment,
       eqLow, eqHigh, eqMid, finalLow, finalHigh, finalMid,
-      equipmentFloor, floorExceeded, impliedRevMultLow, impliedRevMultHigh, discFactor
+      equipmentFloor, floorExceeded, impliedRevMultLow, impliedRevMultHigh, discFactor, inEvAssets
     }
-  }, [fme, multipleLow, multipleHigh, bsItems, years, ebitdaByYear, workingCapitalAdj, discounts])
+  }, [fme, multipleLow, multipleHigh, bsItems, years, ebitdaByYear, discounts])
 
   // Sensitivity matrix
   const sensitivity = useMemo(() => {
@@ -516,7 +520,24 @@ CRITICAL RULES:
       console.log('Raw text (first 500):', text.substring(0, 500))
       const p = cleanJSON(text)
       if (p.plItems) setPlItems(p.plItems.map((i: any) => ({ ...i, id: genId() })))
-      if (p.bsItems) setBsItems(p.bsItems.map((i: any) => ({ ...i, id: genId(), adjustedValue: 0, classification: i.section?.includes('liability') ? (i.name?.toLowerCase().includes('borrow') || i.name?.toLowerCase().includes('loan') || i.name?.toLowerCase().includes('finance') ? 'debt' : 'operating') : 'operating', userNotes: '', children: i.children || [], expanded: false })))
+      if (p.bsItems) setBsItems(p.bsItems.map((i: any) => {
+            const nm = (i.name || '').toLowerCase()
+            const sec = i.section || ''
+            let cls: BSLineItem['classification'] = 'transfer_asset'
+            // Interest-bearing debt
+            if (nm.includes('borrow') || nm.includes('loan') || nm.includes('finance') || nm.includes('hire purchase') || nm.includes('lease liab')) cls = 'debt'
+            // Goodwill / intangibles
+            else if (nm.includes('goodwill') || nm.includes('intangible')) cls = 'goodwill'
+            // Fixed assets used in operations → in enterprise value
+            else if (sec === 'fixed_asset' || (nm.includes('plant') && nm.includes('equipment')) || nm.includes('motor vehicle') || nm.includes('leasehold')) cls = 'in_ev'
+            // Equity items → exclude
+            else if (sec === 'equity') cls = 'goodwill'
+            // Liabilities (non-debt) → transfer
+            else if (sec.includes('liability')) cls = 'transfer_liability'
+            // Current assets → transfer to buyer
+            else cls = 'transfer_asset'
+            return { ...i, id: genId(), adjustedValue: 0, classification: cls, userNotes: '', children: i.children || [], expanded: false }
+          }))
       if (p.years) {
         setFyConfigs(p.years.map((yr: string) => ({ year: yr, label: `FY${yr}`, isPartYear: false, months: 12 })))
       }
@@ -942,18 +963,28 @@ CRITICAL RULES:
         {/* ═══ STEP 5 — BALANCE SHEET ════════════════════════════════════ */}
         {step === 5 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Balance Sheet Review & Classification <HelpBtn onClick={m('balance-sheet-classification')} label="How to classify" /> <HelpBtn onClick={m('working-capital-explained')} label="Working capital" /></h2>
-            <p className="text-xs text-gray-500 mb-1">Classify each item as <strong>Operating</strong> (needed to earn EBITDA), <strong>Surplus</strong> (added to enterprise value), or <strong>Debt</strong> (deducted). Adjust book values to estimated market values where appropriate.</p>
-            <p className="text-xs text-amber-600 mb-4">⚠️ Operating assets are already valued within the enterprise value (the multiple prices them in). Only surplus assets are added separately.</p>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Balance Sheet Review & Classification <HelpBtn onClick={m('balance-sheet-classification')} label="How to classify" /></h2>
+            <p className="text-xs text-gray-500 mb-1">Classify each item to determine what transfers to the buyer and how it affects the equity value. Adjust book values to estimated market values where appropriate.</p>
+            <p className="text-xs text-gray-600 mb-4 bg-[#F0F4F8] p-2 rounded-lg">🔑 <strong>Key principle:</strong> Only fixed assets needed to earn the EBITDA (plant, equipment, vehicles) are included in the enterprise value. All other assets (cash, debtors, stock) and liabilities (creditors, provisions, tax) transfer to the buyer and are added/deducted separately.</p>
             
             {bsItems.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <p>No balance sheet data loaded. Go back to Step 2 to upload or enter balance sheet data.</p>
                 <button className={bs+" mt-3"} onClick={() => {
-                  // Add manual BS entry
-                  const defaults = ['Cash & Bank','Trade Debtors','Stock','Plant & Equipment','Trade Creditors','Finance Loans','Employee Provisions']
-                  const sections: BSLineItem['section'][] = ['current_asset','current_asset','current_asset','fixed_asset','current_liability','current_liability','current_liability']
-                  setBsItems(defaults.map((name, i) => ({ id: genId(), name, section: sections[i], amounts: {}, adjustedValue: 0, classification: sections[i].includes('liability') ? (name.includes('Finance') ? 'debt' : 'operating') : 'operating', userNotes: '' })))
+                  const items: {name: string, section: BSLineItem['section'], cls: BSLineItem['classification']}[] = [
+                    {name: 'Cash & Bank', section: 'current_asset', cls: 'transfer_asset'},
+                    {name: 'Trade Debtors', section: 'current_asset', cls: 'transfer_asset'},
+                    {name: 'Stock / Inventory', section: 'current_asset', cls: 'transfer_asset'},
+                    {name: 'Tax Assets', section: 'current_asset', cls: 'transfer_asset'},
+                    {name: 'Plant & Equipment', section: 'fixed_asset', cls: 'in_ev'},
+                    {name: 'Motor Vehicles', section: 'fixed_asset', cls: 'in_ev'},
+                    {name: 'Trade Creditors', section: 'current_liability', cls: 'transfer_liability'},
+                    {name: 'Employee Provisions (AL, LSL)', section: 'current_liability', cls: 'transfer_liability'},
+                    {name: 'Tax Liabilities', section: 'current_liability', cls: 'transfer_liability'},
+                    {name: 'GST Payable', section: 'current_liability', cls: 'transfer_liability'},
+                    {name: 'Finance Loans / HP', section: 'current_liability', cls: 'debt'},
+                  ]
+                  setBsItems(items.map(it => ({ id: genId(), name: it.name, section: it.section, amounts: {}, adjustedValue: 0, classification: it.cls, userNotes: '', children: [], expanded: false })))
                 }}>+ Add Default Balance Sheet Items</button>
               </div>
             )}
@@ -976,7 +1007,7 @@ CRITICAL RULES:
                       const hasChildren = item.children && item.children.length > 0
                       return (
                         <Fragment key={item.id}>
-                          <tr className={`border-b border-gray-100 hover:bg-gray-50 ${item.classification === 'surplus' ? 'bg-blue-50/30' : item.classification === 'debt' ? 'bg-red-50/30' : ''}`}>
+                          <tr className={`border-b border-gray-100 hover:bg-gray-50 ${item.classification === 'surplus' ? 'bg-blue-50/30' : item.classification === 'debt' ? 'bg-red-50/30' : item.classification === 'transfer_asset' ? 'bg-emerald-50/20' : item.classification === 'transfer_liability' ? 'bg-orange-50/20' : item.classification === 'goodwill' ? 'bg-amber-50/30' : ''}`}>
                             <td className="px-3 py-1.5">
                               <div className="flex items-center gap-1">
                                 {hasChildren && (
@@ -995,10 +1026,20 @@ CRITICAL RULES:
                               <input type="number" className="w-24 text-right text-xs border rounded px-2 py-1 bg-white" value={item.adjustedValue || bookVal || ''} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,adjustedValue:parseFloat(e.target.value)||0}:b))} />
                             </td>
                             <td className="px-2 py-1.5">
-                              <select className={`text-[10px] border rounded px-1 py-0.5 ${item.classification === 'surplus' ? 'bg-blue-100 border-blue-300 text-blue-700 font-semibold' : item.classification === 'debt' ? 'bg-red-100 border-red-300 text-red-700 font-semibold' : 'bg-white'}`} value={item.classification} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,classification:e.target.value as any}:b))}>
-                                <option value="operating">Operating</option>
-                                <option value="surplus">⊕ Surplus</option>
-                                <option value="debt">⊖ Debt</option>
+                              <select className={`text-[10px] border rounded px-1 py-0.5 font-medium ${
+                                item.classification === 'in_ev' ? 'bg-gray-100 border-gray-300 text-gray-700' :
+                                item.classification === 'transfer_asset' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' :
+                                item.classification === 'transfer_liability' ? 'bg-orange-100 border-orange-300 text-orange-700' :
+                                item.classification === 'surplus' ? 'bg-blue-100 border-blue-300 text-blue-700' :
+                                item.classification === 'debt' ? 'bg-red-100 border-red-300 text-red-700' :
+                                item.classification === 'goodwill' ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white'
+                              }`} value={item.classification} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,classification:e.target.value as any}:b))}>
+                                <option value="in_ev">🔧 In Enterprise Value</option>
+                                <option value="transfer_asset">➕ Transfers (Asset)</option>
+                                <option value="transfer_liability">➖ Transfers (Liability)</option>
+                                <option value="surplus">⭐ Surplus Asset</option>
+                                <option value="debt">🏦 Debt</option>
+                                <option value="goodwill">📋 Goodwill (replaced)</option>
                               </select>
                             </td>
                             <td className="px-2 py-1.5"><input className="w-full text-[10px] border rounded px-1 py-0.5 bg-white" value={item.userNotes} onChange={e => setBsItems(p => p.map(b => b.id===item.id?{...b,userNotes:e.target.value}:b))} placeholder="Notes..." /></td>
@@ -1025,95 +1066,105 @@ CRITICAL RULES:
             {bsItems.length > 0 && (() => {
               const yr = years[0] || ''
               const getVal = (b: BSLineItem) => b.adjustedValue || (b.amounts[yr] || 0)
-              const operatingAssets = bsItems.filter(b => b.classification === 'operating' && !b.section.includes('liability') && b.section !== 'equity')
-              const operatingLiabs = bsItems.filter(b => b.classification === 'operating' && b.section.includes('liability'))
+              const inEvItems = bsItems.filter(b => b.classification === 'in_ev')
+              const transferAssetItems = bsItems.filter(b => b.classification === 'transfer_asset')
+              const transferLiabItems = bsItems.filter(b => b.classification === 'transfer_liability')
               const surplusItems = bsItems.filter(b => b.classification === 'surplus')
               const debtItems = bsItems.filter(b => b.classification === 'debt')
-              const goodwillItems = bsItems.filter(b => b.name.toLowerCase().includes('goodwill') || b.name.toLowerCase().includes('intangible'))
-              const totalOpAssets = operatingAssets.reduce((s, b) => s + getVal(b), 0)
-              const totalOpLiabs = operatingLiabs.reduce((s, b) => s + getVal(b), 0)
-              const netWorkingCap = totalOpAssets - totalOpLiabs
+              const goodwillItems = bsItems.filter(b => b.classification === 'goodwill')
+              const totalInEv = inEvItems.reduce((s, b) => s + getVal(b), 0)
+              const totalTransferA = transferAssetItems.reduce((s, b) => s + getVal(b), 0)
+              const totalTransferL = transferLiabItems.reduce((s, b) => s + getVal(b), 0)
               const totalSurplus = surplusItems.reduce((s, b) => s + getVal(b), 0)
               const totalDebt = debtItems.reduce((s, b) => s + Math.abs(getVal(b)), 0)
+              const netTransfer = totalTransferA - totalTransferL
+              const netBsAdj = netTransfer + totalSurplus - totalDebt
               return (
                 <div className="mt-6 space-y-4">
-                  {/* INCLUDED IN ENTERPRISE VALUE */}
+                  {/* IN ENTERPRISE VALUE */}
                   <div className="rounded-xl border-2 border-gray-200 overflow-hidden">
                     <div className="bg-gray-100 px-4 py-2 border-b">
-                      <p className="text-sm font-bold text-gray-700">✅ INCLUDED in Enterprise Value <span className="font-normal text-gray-500">(valued within the EBITDA multiple — no separate adjustment)</span></p>
+                      <p className="text-sm font-bold text-gray-700">🔧 INCLUDED IN ENTERPRISE VALUE <span className="font-normal text-gray-500">(operating fixed assets — valued within the EBITDA multiple)</span></p>
                     </div>
                     <div className="px-4 py-3">
-                      <p className="text-[10px] text-gray-500 mb-2">These operating assets and liabilities are needed to earn the EBITDA. The multiple already prices them in. They are NOT added separately to avoid double-counting.</p>
-                      <table className="w-full text-xs">
-                        <tbody>
-                          <tr className="border-b border-gray-100"><td colSpan={2} className="py-1 font-semibold text-gray-600">Operating Assets</td></tr>
-                          {operatingAssets.map(b => (
-                            <tr key={b.id} className="border-b border-gray-50">
-                              <td className="py-1 pl-4 text-gray-600">{b.name}</td>
-                              <td className="py-1 text-right text-gray-700 font-medium">{fmt(getVal(b))}</td>
-                            </tr>
-                          ))}
-                          <tr className="border-b border-gray-200 bg-gray-50"><td className="py-1 pl-4 font-semibold text-gray-700">Total Operating Assets</td><td className="py-1 text-right font-bold text-gray-800">{fmt(totalOpAssets)}</td></tr>
-                          
-                          <tr className="border-b border-gray-100"><td colSpan={2} className="py-1 font-semibold text-gray-600 pt-2">Operating Liabilities</td></tr>
-                          {operatingLiabs.map(b => (
-                            <tr key={b.id} className="border-b border-gray-50">
-                              <td className="py-1 pl-4 text-gray-600">{b.name}</td>
-                              <td className="py-1 text-right text-red-600">({fmt(getVal(b))})</td>
-                            </tr>
-                          ))}
-                          <tr className="border-b border-gray-200 bg-gray-50"><td className="py-1 pl-4 font-semibold text-gray-700">Total Operating Liabilities</td><td className="py-1 text-right font-bold text-red-700">({fmt(totalOpLiabs)})</td></tr>
-                          
-                          <tr className="bg-gray-100"><td className="py-2 font-bold text-[#1F4E79]">Net Operating Position</td><td className="py-2 text-right font-bold text-[#1F4E79]">{fmt(netWorkingCap)}</td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* EXCLUDED — SURPLUS ASSETS */}
-                  <div className="rounded-xl border-2 border-blue-200 overflow-hidden">
-                    <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
-                      <p className="text-sm font-bold text-blue-800">⊕ SURPLUS ASSETS <span className="font-normal text-blue-600">(added to enterprise value — not needed for operations)</span></p>
-                    </div>
-                    <div className="px-4 py-3">
-                      {surplusItems.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">No items classified as surplus. Use the dropdown above to reclassify items like excess cash, investments, or director loans.</p>
-                      ) : (
-                        <table className="w-full text-xs">
-                          <tbody>
-                            {surplusItems.map(b => (
-                              <tr key={b.id} className="border-b border-blue-100">
-                                <td className="py-1 text-blue-800">{b.name}</td>
-                                <td className="py-1 text-right text-blue-800 font-medium">{fmt(getVal(b))}</td>
-                              </tr>
-                            ))}
-                            <tr className="bg-blue-100"><td className="py-2 font-bold text-blue-900">Total Surplus Assets</td><td className="py-2 text-right font-bold text-blue-900">{fmt(totalSurplus)}</td></tr>
-                          </tbody>
-                        </table>
+                      <p className="text-[10px] text-gray-500 mb-2">These fixed assets are needed to earn the EBITDA. The multiple already prices them in. They are NOT added separately.</p>
+                      {inEvItems.length === 0 ? <p className="text-xs text-gray-400 italic">No items classified. Classify plant, equipment, and vehicles used in operations here.</p> : (
+                        <table className="w-full text-xs"><tbody>
+                          {inEvItems.map(b => (<tr key={b.id} className="border-b border-gray-100"><td className="py-1 text-gray-600">{b.name}</td><td className="py-1 text-right text-gray-700 font-medium">{fmt(getVal(b))}</td></tr>))}
+                          <tr className="bg-gray-50"><td className="py-1.5 font-bold text-gray-700">Total (for reference only)</td><td className="py-1.5 text-right font-bold text-gray-800">{fmt(totalInEv)}</td></tr>
+                        </tbody></table>
                       )}
                     </div>
                   </div>
 
-                  {/* EXCLUDED — DEBT */}
-                  <div className="rounded-xl border-2 border-red-200 overflow-hidden">
-                    <div className="bg-red-50 px-4 py-2 border-b border-red-200">
-                      <p className="text-sm font-bold text-red-800">⊖ INTEREST-BEARING DEBT <span className="font-normal text-red-600">(deducted from enterprise value — buyer expects seller to repay)</span></p>
+                  {/* TRANSFERRING ASSETS */}
+                  <div className="rounded-xl border-2 border-emerald-200 overflow-hidden">
+                    <div className="bg-emerald-50 px-4 py-2 border-b border-emerald-200">
+                      <p className="text-sm font-bold text-emerald-800">➕ ASSETS TRANSFERRING TO BUYER <span className="font-normal text-emerald-600">(added to enterprise value)</span></p>
                     </div>
                     <div className="px-4 py-3">
-                      {debtItems.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">No items classified as debt. Use the dropdown above to reclassify bank loans, HP, or finance leases.</p>
-                      ) : (
-                        <table className="w-full text-xs">
-                          <tbody>
-                            {debtItems.map(b => (
-                              <tr key={b.id} className="border-b border-red-100">
-                                <td className="py-1 text-red-800">{b.name}</td>
-                                <td className="py-1 text-right text-red-800 font-medium">({fmt(Math.abs(getVal(b)))})</td>
-                              </tr>
-                            ))}
-                            <tr className="bg-red-100"><td className="py-2 font-bold text-red-900">Total Debt</td><td className="py-2 text-right font-bold text-red-900">({fmt(totalDebt)})</td></tr>
-                          </tbody>
-                        </table>
+                      <p className="text-[10px] text-gray-500 mb-2">These assets transfer to the buyer on settlement. Cash, debtors (at collectible value), stock (at NRV), prepayments, tax assets.</p>
+                      {transferAssetItems.length === 0 ? <p className="text-xs text-gray-400 italic">No items. Classify cash, debtors, stock, prepayments, tax assets here.</p> : (
+                        <table className="w-full text-xs"><tbody>
+                          {transferAssetItems.map(b => (<tr key={b.id} className="border-b border-emerald-100"><td className="py-1 text-emerald-800">{b.name}</td><td className="py-1 text-right text-emerald-800 font-medium">{fmt(getVal(b))}</td></tr>))}
+                          <tr className="bg-emerald-100"><td className="py-1.5 font-bold text-emerald-900">Total Transferring Assets</td><td className="py-1.5 text-right font-bold text-emerald-900">{fmt(totalTransferA)}</td></tr>
+                        </tbody></table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* TRANSFERRING LIABILITIES */}
+                  <div className="rounded-xl border-2 border-orange-200 overflow-hidden">
+                    <div className="bg-orange-50 px-4 py-2 border-b border-orange-200">
+                      <p className="text-sm font-bold text-orange-800">➖ LIABILITIES TRANSFERRING TO BUYER <span className="font-normal text-orange-600">(deducted from enterprise value)</span></p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="text-[10px] text-gray-500 mb-2">These liabilities transfer to the buyer. Trade creditors, employee provisions (AL, LSL), tax liabilities, GST payable.</p>
+                      {transferLiabItems.length === 0 ? <p className="text-xs text-gray-400 italic">No items. Classify trade creditors, provisions, and tax liabilities here.</p> : (
+                        <table className="w-full text-xs"><tbody>
+                          {transferLiabItems.map(b => (<tr key={b.id} className="border-b border-orange-100"><td className="py-1 text-orange-800">{b.name}</td><td className="py-1 text-right text-orange-800 font-medium">({fmt(Math.abs(getVal(b)))})</td></tr>))}
+                          <tr className="bg-orange-100"><td className="py-1.5 font-bold text-orange-900">Total Transferring Liabilities</td><td className="py-1.5 text-right font-bold text-orange-900">({fmt(totalTransferL)})</td></tr>
+                        </tbody></table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* NET TRANSFERRING */}
+                  <div className="rounded-xl border border-gray-300 bg-gray-50 px-4 py-3">
+                    <table className="w-full text-sm"><tbody>
+                      <tr><td className="py-1 text-emerald-700">Transferring Assets</td><td className="py-1 text-right font-bold text-emerald-700">{fmt(totalTransferA)}</td></tr>
+                      <tr className="border-b"><td className="py-1 text-orange-700">Less: Transferring Liabilities</td><td className="py-1 text-right font-bold text-orange-700">({fmt(totalTransferL)})</td></tr>
+                      <tr><td className="py-2 font-bold text-[#1F4E79]">Net Transferring to Buyer</td><td className="py-2 text-right font-bold text-[#1F4E79] text-lg">{fmt(netTransfer)}</td></tr>
+                    </tbody></table>
+                  </div>
+
+                  {/* SURPLUS ASSETS */}
+                  <div className="rounded-xl border-2 border-blue-200 overflow-hidden">
+                    <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
+                      <p className="text-sm font-bold text-blue-800">⭐ SURPLUS ASSETS <span className="font-normal text-blue-600">(non-operating — added to enterprise value)</span></p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="text-[10px] text-gray-500 mb-2">Assets not needed for operations: excess cash, investments, director loans, non-operating property.</p>
+                      {surplusItems.length === 0 ? <p className="text-xs text-gray-400 italic">No surplus assets identified.</p> : (
+                        <table className="w-full text-xs"><tbody>
+                          {surplusItems.map(b => (<tr key={b.id} className="border-b border-blue-100"><td className="py-1 text-blue-800">{b.name}</td><td className="py-1 text-right text-blue-800 font-medium">{fmt(getVal(b))}</td></tr>))}
+                          <tr className="bg-blue-100"><td className="py-1.5 font-bold text-blue-900">Total Surplus Assets</td><td className="py-1.5 text-right font-bold text-blue-900">{fmt(totalSurplus)}</td></tr>
+                        </tbody></table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* DEBT */}
+                  <div className="rounded-xl border-2 border-red-200 overflow-hidden">
+                    <div className="bg-red-50 px-4 py-2 border-b border-red-200">
+                      <p className="text-sm font-bold text-red-800">🏦 INTEREST-BEARING DEBT <span className="font-normal text-red-600">(deducted from enterprise value)</span></p>
+                    </div>
+                    <div className="px-4 py-3">
+                      {debtItems.length === 0 ? <p className="text-xs text-gray-400 italic">No interest-bearing debt.</p> : (
+                        <table className="w-full text-xs"><tbody>
+                          {debtItems.map(b => (<tr key={b.id} className="border-b border-red-100"><td className="py-1 text-red-800">{b.name}</td><td className="py-1 text-right text-red-800 font-medium">({fmt(Math.abs(getVal(b)))})</td></tr>))}
+                          <tr className="bg-red-100"><td className="py-1.5 font-bold text-red-900">Total Debt</td><td className="py-1.5 text-right font-bold text-red-900">({fmt(totalDebt)})</td></tr>
+                        </tbody></table>
                       )}
                     </div>
                   </div>
@@ -1122,12 +1173,10 @@ CRITICAL RULES:
                   {goodwillItems.length > 0 && (
                     <div className="rounded-xl border-2 border-amber-200 overflow-hidden">
                       <div className="bg-amber-50 px-4 py-2 border-b border-amber-200">
-                        <p className="text-sm font-bold text-amber-800">⚠️ EXISTING GOODWILL <span className="font-normal text-amber-600">(on balance sheet — will be replaced by derived goodwill from this valuation)</span></p>
+                        <p className="text-sm font-bold text-amber-800">📋 EXISTING GOODWILL / INTANGIBLES <span className="font-normal text-amber-600">(excluded — replaced by derived goodwill)</span></p>
                       </div>
                       <div className="px-4 py-3">
-                        {goodwillItems.map(b => (
-                          <p key={b.id} className="text-xs text-amber-700">{b.name}: {fmt(getVal(b))} — This existing goodwill arose from a prior acquisition and is replaced by the goodwill derived in this valuation.</p>
-                        ))}
+                        {goodwillItems.map(b => (<p key={b.id} className="text-xs text-amber-700">{b.name}: {fmt(getVal(b))} — replaced by the goodwill derived from this valuation.</p>))}
                       </div>
                     </div>
                   )}
@@ -1141,16 +1190,14 @@ CRITICAL RULES:
                       <table className="w-full text-sm">
                         <tbody>
                           <tr className="border-b border-gray-200"><td className="py-2 text-gray-600">Enterprise Value (FME × Multiple)</td><td className="py-2 text-right text-gray-500 italic">Calculated in Steps 6-7</td></tr>
+                          <tr className="border-b border-gray-200"><td className="py-2 text-emerald-700">Plus: Transferring Assets</td><td className="py-2 text-right font-bold text-emerald-700">{fmt(totalTransferA)}</td></tr>
+                          <tr className="border-b border-gray-200"><td className="py-2 text-orange-700">Less: Transferring Liabilities</td><td className="py-2 text-right font-bold text-orange-700">({fmt(totalTransferL)})</td></tr>
                           <tr className="border-b border-gray-200"><td className="py-2 text-blue-700">Plus: Surplus Assets</td><td className="py-2 text-right font-bold text-blue-700">{fmt(totalSurplus)}</td></tr>
                           <tr className="border-b border-gray-200"><td className="py-2 text-red-700">Less: Interest-Bearing Debt</td><td className="py-2 text-right font-bold text-red-700">({fmt(totalDebt)})</td></tr>
-                          <tr className="border-b border-gray-200">
-                            <td className="py-2 text-gray-700">Working Capital Adjustment <HelpBtn onClick={m('working-capital-explained')} /></td>
-                            <td className="py-2 text-right"><input type="number" className="w-28 text-right text-sm border rounded px-2 py-1 bg-white" value={workingCapitalAdj||''} onChange={e => setWorkingCapitalAdj(parseFloat(e.target.value)||0)} placeholder="0" /></td>
-                          </tr>
-                          <tr className="bg-[#1F4E79] text-white"><td className="py-2 px-2 font-bold">= Equity Value</td><td className="py-2 px-2 text-right font-bold">Enterprise Value + {fmt(totalSurplus - totalDebt - workingCapitalAdj)}</td></tr>
+                          <tr className="bg-gray-200"><td className="py-2 px-2 font-semibold text-gray-700">Net Balance Sheet Adjustment</td><td className="py-2 px-2 text-right font-bold text-gray-800">{fmt(netBsAdj)}</td></tr>
+                          <tr className="bg-[#1F4E79] text-white"><td className="py-2 px-2 font-bold">= Equity Value</td><td className="py-2 px-2 text-right font-bold">Enterprise Value + {fmt(netBsAdj)}</td></tr>
                         </tbody>
                       </table>
-                      <p className="text-[10px] text-gray-500 mt-2">The net adjustment from balance sheet items is <strong>{fmt(totalSurplus - totalDebt - workingCapitalAdj)}</strong>. This will be added to (or deducted from) the enterprise value in Step 8.</p>
                     </div>
                   </div>
                 </div>
@@ -1294,16 +1341,19 @@ CRITICAL RULES:
         {/* ═══ STEP 8 — VALUATION ════════════════════════════════════════ */}
         {step === 8 && (<div className="space-y-6">
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Summary <WorkingsBtn onClick={m('valuation-workings')} label="Full workings" /> <WorkingsBtn onClick={m('bs-surplus-workings')} label="Surplus & debt detail" /></h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-4">Valuation Summary <WorkingsBtn onClick={m('valuation-workings')} label="Full workings" /> <WorkingsBtn onClick={m('bs-surplus-workings')} label="Balance sheet detail" /></h2>
             <table className="w-full text-sm">
               <tbody>
                 <tr className="border-b"><td className="py-2 text-gray-600">Future Maintainable Earnings (FME)</td><td className="text-right py-2 font-bold">{fmt(fme)}</td></tr>
                 <tr className="border-b"><td className="py-2 text-gray-600">EBITDA Multiple Range</td><td className="text-right py-2 font-bold">{multipleLow.toFixed(1)}x – {multipleHigh.toFixed(1)}x</td></tr>
                 <tr className="border-b bg-blue-50"><td className="py-2 font-semibold text-[#1F4E79] px-2">Enterprise Value</td><td className="text-right py-2 font-bold text-[#1F4E79] px-2">{fmt(valuation.evLow)} – {fmt(valuation.evHigh)}</td></tr>
                 {engagement.valuationScope === 'equity' && (<>
-                  {workingCapitalAdj !== 0 && <tr className="border-b"><td className="py-2 text-gray-600 pl-6">Less: Working Capital Adjustment</td><td className="text-right py-2 text-red-600">({fmt(workingCapitalAdj)})</td></tr>}
-                  <tr className="border-b"><td className="py-2 text-gray-600 pl-6">Plus: Surplus Assets</td><td className="text-right py-2 text-emerald-600">{fmt(valuation.surplusAssets)}</td></tr>
-                  <tr className="border-b"><td className="py-2 text-gray-600 pl-6">Less: Net Debt</td><td className="text-right py-2 text-red-600">({fmt(valuation.netDebt)})</td></tr>
+                  <tr className="border-b"><td className="py-2 text-emerald-700 pl-6">Plus: Transferring Assets (cash, debtors, stock, etc.)</td><td className="text-right py-2 font-semibold text-emerald-700">{fmt(valuation.transferAssets)}</td></tr>
+                  <tr className="border-b"><td className="py-2 text-orange-700 pl-6">Less: Transferring Liabilities (creditors, provisions, tax)</td><td className="text-right py-2 font-semibold text-orange-700">({fmt(valuation.transferLiabilities)})</td></tr>
+                  <tr className="border-b bg-gray-50"><td className="py-2 text-gray-700 pl-6 font-semibold">Net Transferring to Buyer</td><td className="text-right py-2 font-bold text-gray-800">{fmt(valuation.netTransferring)}</td></tr>
+                  {valuation.surplusAssets > 0 && <tr className="border-b"><td className="py-2 text-blue-700 pl-6">Plus: Surplus Assets</td><td className="text-right py-2 font-semibold text-blue-700">{fmt(valuation.surplusAssets)}</td></tr>}
+                  {valuation.netDebt > 0 && <tr className="border-b"><td className="py-2 text-red-700 pl-6">Less: Interest-Bearing Debt</td><td className="text-right py-2 font-semibold text-red-700">({fmt(valuation.netDebt)})</td></tr>}
+                  <tr className="border-b bg-gray-100"><td className="py-2 text-gray-700 pl-6 font-semibold">Total Balance Sheet Adjustment</td><td className="text-right py-2 font-bold text-gray-800">{fmt(valuation.netBsAdjustment)}</td></tr>
                   <tr className="bg-[#1F4E79] text-white"><td className="py-3 font-bold px-2">Equity Value</td><td className="text-right py-3 font-bold px-2">{fmt(valuation.eqLow)} – {fmt(valuation.eqHigh)}</td></tr>
                   <tr className="bg-[#2E75B6] text-white"><td className="py-3 font-bold px-2">Midpoint (Most Likely Value)</td><td className="text-right py-3 font-bold text-xl px-2">{fmt(valuation.eqMid)}</td></tr>
                 </>)}
@@ -1458,23 +1508,31 @@ CRITICAL RULES:
       </Modal>
 
       <Modal open={activeModal==='balance-sheet-classification'} onClose={() => setActiveModal(null)} title="Balance Sheet Classification Guide">
-        <p><strong>Every balance sheet item falls into one of three categories for valuation purposes:</strong></p>
+        <p><strong>Every balance sheet item falls into one of five categories:</strong></p>
         <div className="bg-gray-50 p-3 rounded-lg mb-2">
-          <p className="font-bold text-gray-700">✅ Operating (default)</p>
-          <p>Assets and liabilities needed to run the business and earn the EBITDA. Examples: trade debtors, stock, plant &amp; equipment, trade creditors, employee provisions.</p>
-          <p className="text-amber-600 mt-1 text-xs">These are already valued WITHIN the enterprise value (the multiple prices them in). They appear in the &quot;Included in Enterprise Value&quot; section below the table for transparency, but are NOT added or deducted separately.</p>
+          <p className="font-bold text-gray-700">🔧 In Enterprise Value</p>
+          <p>Operating fixed assets needed to earn the EBITDA: plant &amp; equipment, vehicles, leasehold improvements. The EBITDA multiple already prices these in — they are NOT added separately.</p>
+        </div>
+        <div className="bg-emerald-50 p-3 rounded-lg mb-2">
+          <p className="font-bold text-emerald-800">➕ Transfers to Buyer (Asset)</p>
+          <p>Current assets that transfer on settlement: cash, trade debtors, stock/inventory, prepayments, tax assets. These are ADDED to the enterprise value because the buyer receives them.</p>
+        </div>
+        <div className="bg-orange-50 p-3 rounded-lg mb-2">
+          <p className="font-bold text-orange-800">➖ Transfers to Buyer (Liability)</p>
+          <p>Current liabilities that transfer on settlement: trade creditors, employee provisions (annual leave, LSL), tax liabilities, GST payable. These are DEDUCTED because the buyer inherits the obligation to pay them.</p>
         </div>
         <div className="bg-blue-50 p-3 rounded-lg mb-2">
-          <p className="font-bold text-blue-800">⊕ Surplus</p>
-          <p>Assets the business owns but does NOT need for its operations. Examples: excess cash (above what&apos;s needed for day-to-day operations), term deposits, investments, loans to directors, non-operating property.</p>
-          <p className="text-blue-600 mt-1 text-xs">These are ADDED to the enterprise value because a buyer gets them as a bonus on top of the operating business.</p>
+          <p className="font-bold text-blue-800">⭐ Surplus Assets</p>
+          <p>Non-operating assets: excess cash beyond working needs, investments, director loans, non-operating property. ADDED to enterprise value.</p>
         </div>
         <div className="bg-red-50 p-3 rounded-lg mb-2">
-          <p className="font-bold text-red-800">⊖ Debt</p>
-          <p>Interest-bearing borrowings: bank loans, hire purchase, finance leases, equipment finance. NOT trade creditors (those are operating).</p>
-          <p className="text-red-600 mt-1 text-xs">These are DEDUCTED from the enterprise value because a buyer typically expects debt to be repaid by the seller on settlement.</p>
+          <p className="font-bold text-red-800">🏦 Interest-Bearing Debt</p>
+          <p>Bank loans, hire purchase, finance leases, equipment finance. NOT trade creditors. DEDUCTED — buyer expects seller to repay on settlement.</p>
         </div>
-        <p className="bg-amber-50 p-3 rounded-lg border border-amber-200 mt-2"><strong>⚠️ Common question:</strong> &quot;Should I add the debtors and stock to the enterprise value?&quot; — No. They are operating items already valued within the EBITDA multiple. Adding them would be double-counting. However, if working capital is materially above or below a normal level for the business, you can make a working capital adjustment to account for the difference.</p>
+        <div className="bg-amber-50 p-3 rounded-lg mb-2">
+          <p className="font-bold text-amber-800">📋 Goodwill (Replaced)</p>
+          <p>Existing goodwill or intangibles on the balance sheet from a prior acquisition. EXCLUDED — replaced by the goodwill derived from this valuation. Also use for equity items (share capital, retained earnings).</p>
+        </div>
       </Modal>
 
       <Modal open={activeModal==='working-capital-explained'} onClose={() => setActiveModal(null)} title="Working Capital Adjustment">
@@ -1604,42 +1662,61 @@ CRITICAL RULES:
           <p>× Multiple (Low): {multipleLow.toFixed(2)}x → Enterprise Value: {fmt(valuation.evLow)}</p>
           <p>× Multiple (High): {multipleHigh.toFixed(2)}x → Enterprise Value: {fmt(valuation.evHigh)}</p>
           {engagement.valuationScope === 'equity' && (<>
+            <p className="mt-2 border-t pt-2 font-semibold">Balance Sheet Adjustments:</p>
+            <p className="text-emerald-700">Plus Transferring Assets: {fmt(valuation.transferAssets)}</p>
+            <p className="text-orange-700">Less Transferring Liabilities: ({fmt(valuation.transferLiabilities)})</p>
+            <p className="font-semibold">= Net Transferring: {fmt(valuation.netTransferring)}</p>
+            {valuation.surplusAssets > 0 && <p className="text-blue-700">Plus Surplus Assets: {fmt(valuation.surplusAssets)}</p>}
+            {valuation.netDebt > 0 && <p className="text-red-700">Less Debt: ({fmt(valuation.netDebt)})</p>}
+            <p className="font-bold border-t pt-2">Total BS Adjustment: {fmt(valuation.netBsAdjustment)}</p>
             <p className="mt-2 border-t pt-2 font-semibold">Equity Value (Low):</p>
-            <p>Enterprise Value: {fmt(valuation.evLow)}</p>
-            {workingCapitalAdj !== 0 && <p>Less Working Capital Adj: ({fmt(workingCapitalAdj)})</p>}
-            <p>Plus Surplus Assets: {fmt(valuation.surplusAssets)}</p>
-            <p>Less Net Debt: ({fmt(valuation.netDebt)})</p>
-            <p className="font-bold text-[#1F4E79]">= Equity Value (Low): {fmt(valuation.eqLow)}</p>
-            <p className="mt-2 border-t pt-2 font-semibold">Equity Value (High):</p>
-            <p>Enterprise Value: {fmt(valuation.evHigh)}</p>
-            {workingCapitalAdj !== 0 && <p>Less Working Capital Adj: ({fmt(workingCapitalAdj)})</p>}
-            <p>Plus Surplus Assets: {fmt(valuation.surplusAssets)}</p>
-            <p>Less Net Debt: ({fmt(valuation.netDebt)})</p>
-            <p className="font-bold text-[#1F4E79]">= Equity Value (High): {fmt(valuation.eqHigh)}</p>
+            <p>{fmt(valuation.evLow)} + {fmt(valuation.netBsAdjustment)} = {fmt(valuation.eqLow)}</p>
+            <p className="font-semibold">Equity Value (High):</p>
+            <p>{fmt(valuation.evHigh)} + {fmt(valuation.netBsAdjustment)} = {fmt(valuation.eqHigh)}</p>
             <p className="font-bold text-[#1F4E79] text-lg mt-2 border-t pt-2">Midpoint: {fmt(valuation.eqMid)}</p>
           </>)}
         </div>
       </Modal>
 
-      <Modal open={activeModal==='bs-surplus-workings'} onClose={() => setActiveModal(null)} title="Surplus Assets & Net Debt Breakdown">
-        <p><strong>Surplus Assets</strong> (added to enterprise value):</p>
+      <Modal open={activeModal==='bs-surplus-workings'} onClose={() => setActiveModal(null)} title="Balance Sheet Adjustment Breakdown">
+        <p><strong>Transferring Assets</strong> (added):</p>
         <div className="bg-emerald-50 p-3 rounded-lg mb-2">
-          {bsItems.filter(b => b.classification === 'surplus').length === 0 ? <p className="text-gray-400">None classified as surplus</p> :
-            bsItems.filter(b => b.classification === 'surplus').map(b => (
+          {bsItems.filter(b => b.classification === 'transfer_asset').length === 0 ? <p className="text-gray-400">None</p> :
+            bsItems.filter(b => b.classification === 'transfer_asset').map(b => (
               <p key={b.id}>{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]] || 0))}</p>
             ))
           }
-          <p className="font-bold border-t mt-1 pt-1">Total: {fmt(valuation.surplusAssets)}</p>
+          <p className="font-bold border-t mt-1 pt-1">Total: {fmt(valuation.transferAssets)}</p>
         </div>
-        <p><strong>Net Debt</strong> (deducted from enterprise value):</p>
-        <div className="bg-red-50 p-3 rounded-lg mb-2">
-          {bsItems.filter(b => b.classification === 'debt').length === 0 ? <p className="text-gray-400">None classified as debt</p> :
-            bsItems.filter(b => b.classification === 'debt').map(b => (
-              <p key={b.id}>{b.name}: {fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]] || 0)))}</p>
+        <p><strong>Transferring Liabilities</strong> (deducted):</p>
+        <div className="bg-orange-50 p-3 rounded-lg mb-2">
+          {bsItems.filter(b => b.classification === 'transfer_liability').length === 0 ? <p className="text-gray-400">None</p> :
+            bsItems.filter(b => b.classification === 'transfer_liability').map(b => (
+              <p key={b.id}>{b.name}: ({fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]] || 0)))})</p>
             ))
           }
-          <p className="font-bold border-t mt-1 pt-1">Total: {fmt(valuation.netDebt)}</p>
+          <p className="font-bold border-t mt-1 pt-1">Total: ({fmt(valuation.transferLiabilities)})</p>
         </div>
+        <p className="font-bold">Net Transferring: {fmt(valuation.netTransferring)}</p>
+        {valuation.surplusAssets > 0 && (<>
+          <p className="mt-2"><strong>Surplus Assets</strong> (added):</p>
+          <div className="bg-blue-50 p-3 rounded-lg mb-2">
+            {bsItems.filter(b => b.classification === 'surplus').map(b => (
+              <p key={b.id}>{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]] || 0))}</p>
+            ))}
+            <p className="font-bold border-t mt-1 pt-1">Total: {fmt(valuation.surplusAssets)}</p>
+          </div>
+        </>)}
+        {valuation.netDebt > 0 && (<>
+          <p><strong>Interest-Bearing Debt</strong> (deducted):</p>
+          <div className="bg-red-50 p-3 rounded-lg mb-2">
+            {bsItems.filter(b => b.classification === 'debt').map(b => (
+              <p key={b.id}>{b.name}: ({fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]] || 0)))})</p>
+            ))}
+            <p className="font-bold border-t mt-1 pt-1">Total: ({fmt(valuation.netDebt)})</p>
+          </div>
+        </>)}
+        <p className="font-bold text-[#1F4E79] text-lg mt-2 border-t pt-2">Total BS Adjustment: {fmt(valuation.netBsAdjustment)}</p>
       </Modal>
 
       {/* Footer */}
