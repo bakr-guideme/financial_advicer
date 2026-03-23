@@ -133,12 +133,12 @@ const NORM_TREATMENTS: Record<string, string> = {
 }
 
 const DEFAULT_RISK_FACTORS: RiskFactor[] = [
-  { id: 'revenue', name: 'Revenue Growth & Maintainability', description: 'Consistency and trajectory of revenue; likelihood of continuation', guidance: '0 = strong consistent growth; 5 = stable/flat; 10 = declining revenue', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'financial', name: 'Financial Risk', description: 'Debt levels, liquidity, working capital adequacy', guidance: '0 = no debt, strong liquidity; 5 = moderate debt; 10 = highly leveraged', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'keyman', name: 'Key Person Risk', description: 'Dependence on owner or small number of key people', guidance: '0 = no individual reliance; 5 = moderate dependence; 10 = business fails without owner', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'customer', name: 'Customer Concentration Risk', description: 'Revenue spread across customer base', guidance: '0 = highly diversified; 5 = moderate concentration; 10 = one customer >50% of revenue', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'profitability', name: 'Profitability Risk', description: 'EBITDA margin level and consistency', guidance: '0 = 20%+ consistent margin; 5 = 10% margin; 10 = loss-making or volatile', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'competitive', name: 'Competitive / Industry Risk', description: 'Market position, barriers to entry, regulatory environment', guidance: '0 = monopoly/dominant; 5 = moderate competition; 10 = extremely competitive, low barriers', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'revenue', name: 'Revenue Growth & Maintainability', description: 'How consistent is the revenue, and is it likely to continue? A business with long-term contracts and recurring revenue scores low; one that relies on winning new work each month scores high.', guidance: '← Slide left for lower risk (strong growth, contracted revenue) — Slide right for higher risk (declining, volatile) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'financial', name: 'Financial Risk', description: 'How healthy is the balance sheet? Consider debt levels, cash reserves, and whether the business can comfortably meet its obligations. A debt-free business with cash reserves is very low risk.', guidance: '← Slide left for lower risk (no debt, strong cash) — Slide right for higher risk (heavily leveraged, tight cash) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'keyman', name: 'Key Person Risk', description: 'Would the business survive and maintain its revenue if the owner or key person left? Consider whether relationships, technical skills, or licences are held by one individual. Systems and documented processes reduce this risk.', guidance: '← Slide left for lower risk (strong team, systems in place) — Slide right for higher risk (owner IS the business) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'customer', name: 'Customer Concentration Risk', description: 'Is revenue spread across many customers, or does one or two customers dominate? Losing a customer that represents 30%+ of revenue could be catastrophic. A broad customer base with no single customer over 10% is low risk.', guidance: '← Slide left for lower risk (many customers, none dominant) — Slide right for higher risk (one customer >30%) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'profitability', name: 'Profitability Risk', description: 'Are margins consistent and healthy, or thin and volatile? A business with a stable 20%+ EBITDA margin year after year is predictable. One with margins that swing from 15% to 2% is risky even if the average is acceptable.', guidance: '← Slide left for lower risk (high, stable margins) — Slide right for higher risk (thin, volatile margins) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'competitive', name: 'Competitive / Industry Risk', description: 'How competitive is the market and how strong is the business\'s position in it? Consider barriers to entry, regulatory protection, brand strength, and whether the industry is growing or contracting. A niche market leader with barriers to entry scores low.', guidance: '← Slide left for lower risk (dominant, protected position) — Slide right for higher risk (crowded market, no moat) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
 ]
 
 // ─── INITIAL STATE ──────────────────────────────────────────────────────────
@@ -419,6 +419,22 @@ export default function BusinessValuationTool() {
     })
   }, [])
 
+  const handleDrop = useCallback((e: React.DragEvent, fileType: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const files = e.dataTransfer.files
+    if (!files) return
+    Array.from(files).forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setUploadedFiles(prev => [...prev, { name: file.name, type: fileType, fy: 'auto', data: ev.target?.result as string }])
+      }
+      reader.readAsDataURL(file)
+    })
+  }, [])
+
+  const preventDefaults = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation() }, [])
+
   const parseFinancials = useCallback(async () => {
     if (uploadedFiles.length === 0) return
     setIsProcessing(true)
@@ -660,7 +676,10 @@ CRITICAL RULES:
     return stepComplete[s - 1] === true
   }, [stepComplete])
 
-  const goTo = useCallback((s: Step) => { if (canGoTo(s)) setStep(s) }, [canGoTo])
+  const goTo = useCallback((s: Step) => { if (canGoTo(s)) { setStep(s); window.scrollTo(0, 0) } }, [canGoTo])
+
+  // Scroll to top whenever step changes
+  const setStepAndScroll = useCallback((s: Step) => { setStep(s); window.scrollTo(0, 0) }, [])
 
   // ── Styles ────────────────────────────────────────────────────────────────
   const sc = "rounded-2xl bg-white border border-gray-200 shadow-sm p-6 mb-6"
@@ -772,7 +791,7 @@ CRITICAL RULES:
             </div>
           </div>
           <div className="flex justify-end">
-            <button className={bp} disabled={!step1Valid} onClick={() => { markComplete(1); setStep(2) }}>Continue →</button>
+            <button className={bp} disabled={!step1Valid} onClick={() => { markComplete(1); setStepAndScroll(2) }}>Continue →</button>
           </div>
         </div>)}
 
@@ -781,15 +800,23 @@ CRITICAL RULES:
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Upload Financial Statements <HelpBtn onClick={m('how-to-upload')} label="How to upload" /></h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="border-2 border-dashed border-[#2E75B6] rounded-xl p-4 bg-blue-50/30">
-                <p className="text-sm font-semibold text-[#1F4E79] mb-1">📄 Financial Statements</p>
-                <p className="text-[10px] text-gray-500 mb-2">Upload the accountant&apos;s report (P&amp;L, Balance Sheet, Notes — can be one combined PDF or separate files)</p>
-                <input type="file" accept=".pdf,.xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'financial')} className="text-xs" />
+              <div className="border-2 border-dashed border-[#2E75B6] rounded-xl p-6 bg-blue-50/30 text-center hover:bg-blue-50/60 transition cursor-pointer"
+                onDragOver={preventDefaults} onDragEnter={preventDefaults} onDrop={e => handleDrop(e, 'financial')}
+                onClick={() => (document.getElementById('file-financial') as HTMLInputElement)?.click()}>
+                <p className="text-2xl mb-2">📄</p>
+                <p className="text-sm font-semibold text-[#1F4E79] mb-1">Financial Statements</p>
+                <p className="text-[10px] text-gray-500 mb-2">Drag &amp; drop PDF files here, or click to browse</p>
+                <p className="text-[10px] text-gray-400">P&amp;L, Balance Sheet, Notes — one combined PDF or separate files</p>
+                <input id="file-financial" type="file" accept=".pdf,.xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'financial')} className="hidden" />
               </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-[#2E75B6]">
-                <p className="text-sm font-semibold text-[#1F4E79] mb-1">📒 General Ledger (Optional)</p>
-                <p className="text-[10px] text-gray-500 mb-2">GL exports improve normalisation analysis. Excel/CSV format.</p>
-                <input type="file" accept=".xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'gl')} className="text-xs" />
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-[#2E75B6] hover:bg-blue-50/20 transition cursor-pointer"
+                onDragOver={preventDefaults} onDragEnter={preventDefaults} onDrop={e => handleDrop(e, 'gl')}
+                onClick={() => (document.getElementById('file-gl') as HTMLInputElement)?.click()}>
+                <p className="text-2xl mb-2">📒</p>
+                <p className="text-sm font-semibold text-[#1F4E79] mb-1">General Ledger (Optional)</p>
+                <p className="text-[10px] text-gray-500 mb-2">Drag &amp; drop Excel/CSV here, or click to browse</p>
+                <p className="text-[10px] text-gray-400">GL exports improve normalisation analysis</p>
+                <input id="file-gl" type="file" accept=".xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'gl')} className="hidden" />
               </div>
             </div>
             {uploadedFiles.length > 0 && (
@@ -800,7 +827,7 @@ CRITICAL RULES:
                     <button onClick={() => setUploadedFiles(p => p.filter((_,j) => j!==i))} className="ml-auto text-red-400">✕</button>
                   </div>
                 ))}
-                <button className={bp+" mt-2"} onClick={parseFinancials} disabled={isProcessing}>{isProcessing ? '⏳ Parsing...' : '🤖 Parse with AI'}</button>
+                <button className={bp+" mt-2"} onClick={parseFinancials} disabled={isProcessing}>{isProcessing ? '⏳ Extracting...' : '📊 Extract the Data'}</button>
               </div>
             )}
             {processingMsg && step === 2 && <p className="text-sm text-[#2E75B6] font-medium">{processingMsg}</p>}
@@ -863,8 +890,8 @@ CRITICAL RULES:
             </div>
           )}
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(1)}>← Back</button>
-            <button className={bp} disabled={!step2Valid} onClick={() => { markComplete(2); setStep(3) }}>Continue →</button>
+            <button className={bs} onClick={() => setStepAndScroll(1)}>← Back</button>
+            <button className={bp} disabled={!step2Valid} onClick={() => { markComplete(2); setStepAndScroll(3) }}>Continue →</button>
           </div>
         </div>)}
 
@@ -893,8 +920,8 @@ CRITICAL RULES:
             </div>
           </div>
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(2)}>← Back</button>
-            <button className={bp} onClick={() => { markComplete(3); setStep(4) }}>Confirm & Continue →</button>
+            <button className={bs} onClick={() => setStepAndScroll(2)}>← Back</button>
+            <button className={bp} onClick={() => { markComplete(3); setStepAndScroll(4) }}>Confirm & Continue →</button>
           </div>
         </div>)}
 
@@ -903,7 +930,7 @@ CRITICAL RULES:
           <div className={sc}>
             <div className="flex items-center justify-between mb-4">
               <div><h2 className="text-lg font-bold text-[#1F4E79]">Normalisation Adjustments <HelpBtn onClick={m('what-is-normalisation')} label="What is this?" /> <HelpBtn onClick={m('norm-categories')} label="Categories explained" /></h2><p className="text-xs text-gray-500">Adjust for discretionary, non-recurring and personal expenses</p></div>
-              <button className={bp} onClick={analyseNormalisation} disabled={isProcessing}>{isProcessing ? '⏳...' : '🤖 AI Analysis'}</button>
+              <button className={bp} onClick={analyseNormalisation} disabled={isProcessing}>{isProcessing ? '⏳...' : '🔍 Seek Items to Exclude'}</button>
             </div>
             {processingMsg && step===4 && <p className="text-sm text-[#2E75B6] mb-3">{processingMsg}</p>}
             <div className="mb-3 p-3 bg-gray-50 rounded-lg border flex gap-2 flex-wrap">
@@ -956,8 +983,8 @@ CRITICAL RULES:
             </div>
           )}
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(3)}>← Back</button>
-            <button className={bp} onClick={() => { markComplete(4); initWeights(); setStep(5) }}>
+            <button className={bs} onClick={() => setStepAndScroll(3)}>← Back</button>
+            <button className={bp} onClick={() => { markComplete(4); initWeights(); setStepAndScroll(5) }}>
               Continue to Weighting →
             </button>
           </div>
@@ -1208,8 +1235,8 @@ CRITICAL RULES:
             })()}
           </div>
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(6)}>← Back</button>
-            <button className={bp} onClick={() => { markComplete(7); setStep(8) }}>Continue to Valuation →</button>
+            <button className={bs} onClick={() => setStepAndScroll(6)}>← Back</button>
+            <button className={bp} onClick={() => { markComplete(7); setStepAndScroll(8) }}>Continue to Valuation →</button>
           </div>
         </div>)}
 
@@ -1272,8 +1299,8 @@ CRITICAL RULES:
             </div>
           </div>
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(4)}>← Back</button>
-            <button className={bp} disabled={weights.reduce((s,w) => s+w.weight,0)!==100} onClick={() => { markComplete(5); setStep(6) }}>Continue to Risk Analysis →</button>
+            <button className={bs} onClick={() => setStepAndScroll(4)}>← Back</button>
+            <button className={bp} disabled={weights.reduce((s,w) => s+w.weight,0)!==100} onClick={() => { markComplete(5); setStepAndScroll(6) }}>Continue to Risk Analysis →</button>
           </div>
         </div>)}
 
@@ -1286,25 +1313,37 @@ CRITICAL RULES:
             </div>
             
             <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-[#F0F4F8] border border-[#2E75B6] mb-2">
+                <p className="text-xs text-[#1F4E79] font-semibold">How to score each factor:</p>
+                <p className="text-xs text-gray-600 mt-1">For each risk factor below, drag both sliders to set a range. The <strong>Low (optimistic)</strong> slider is your best-case view. The <strong>High (conservative)</strong> slider is your cautious view. Sliding <strong>left = less risky</strong> (higher multiple, higher value). Sliding <strong>right = more risky</strong> (lower multiple, lower value).</p>
+              </div>
               {riskFactors.map(f => (
-                <div key={f.id} className="p-4 rounded-xl border border-gray-200 bg-gray-50">
-                  <div className="flex items-start justify-between mb-2">
-                    <div><p className="font-bold text-sm text-[#1F4E79]">{f.name}</p><p className="text-[10px] text-gray-500">{f.description}</p><p className="text-[10px] text-gray-400 italic">{f.guidance}</p></div>
-                  </div>
-                  {f.aiReasoning && <p className="text-xs text-blue-700 bg-blue-50 rounded p-2 mb-2">{f.aiReasoning}</p>}
+                <div key={f.id} className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <p className="font-bold text-sm text-[#1F4E79] mb-1">{f.name}</p>
+                  <p className="text-xs text-gray-600 mb-1">{f.description}</p>
+                  <p className="text-[10px] text-[#2E75B6] font-medium mb-2">{f.guidance}</p>
+                  {f.aiReasoning && <p className="text-xs text-blue-700 bg-blue-50 rounded p-2 mb-3 border border-blue-200">🤖 {f.aiReasoning}</p>}
                   <div className="flex gap-6">
                     <div className="flex-1">
-                      <label className="text-[10px] text-gray-500">Low (optimistic)</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-semibold text-emerald-700">Low (optimistic)</label>
+                        <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 rounded">{f.scoreLow}</span>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <input type="range" className="flex-1" min={0} max={10} step={0.5} value={f.scoreLow} onChange={e => setRiskFactors(p => p.map(rf => rf.id===f.id?{...rf,scoreLow:parseFloat(e.target.value)}:rf))} />
-                        <span className="text-sm font-bold w-8 text-center">{f.scoreLow}</span>
+                        <span className="text-[9px] text-emerald-600 w-12">Low risk</span>
+                        <input type="range" className="flex-1 accent-emerald-600" min={0} max={10} step={0.5} value={f.scoreLow} onChange={e => setRiskFactors(p => p.map(rf => rf.id===f.id?{...rf,scoreLow:parseFloat(e.target.value)}:rf))} />
+                        <span className="text-[9px] text-red-500 w-12 text-right">High risk</span>
                       </div>
                     </div>
                     <div className="flex-1">
-                      <label className="text-[10px] text-gray-500">High (conservative)</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-semibold text-orange-700">High (conservative)</label>
+                        <span className="text-sm font-bold text-orange-700 bg-orange-50 px-2 rounded">{f.scoreHigh}</span>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <input type="range" className="flex-1" min={0} max={10} step={0.5} value={f.scoreHigh} onChange={e => setRiskFactors(p => p.map(rf => rf.id===f.id?{...rf,scoreHigh:parseFloat(e.target.value)}:rf))} />
-                        <span className="text-sm font-bold w-8 text-center">{f.scoreHigh}</span>
+                        <span className="text-[9px] text-emerald-600 w-12">Low risk</span>
+                        <input type="range" className="flex-1 accent-orange-600" min={0} max={10} step={0.5} value={f.scoreHigh} onChange={e => setRiskFactors(p => p.map(rf => rf.id===f.id?{...rf,scoreHigh:parseFloat(e.target.value)}:rf))} />
+                        <span className="text-[9px] text-red-500 w-12 text-right">High risk</span>
                       </div>
                     </div>
                   </div>
@@ -1336,8 +1375,8 @@ CRITICAL RULES:
           )}
 
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(5)}>← Back</button>
-            <button className={bp} onClick={() => { markComplete(6); if (engagement.valuationScope === 'equity') setStep(7); else { markComplete(7); setStep(8) } }}>
+            <button className={bs} onClick={() => setStepAndScroll(5)}>← Back</button>
+            <button className={bp} onClick={() => { markComplete(6); if (engagement.valuationScope === 'equity') setStepAndScroll(7); else { markComplete(7); setStepAndScroll(8) } }}>
               {engagement.valuationScope === 'equity' ? 'Continue to Balance Sheet →' : 'Continue to Valuation →'}
             </button>
           </div>
@@ -1435,199 +1474,254 @@ CRITICAL RULES:
           </div>
 
           <div className="flex justify-between">
-            <button className={bs} onClick={() => setStep(engagement.valuationScope === 'equity' ? 7 : 6)}>← Back</button>
-            <button className={bp} onClick={() => { markComplete(8); setStep(9) }}>Continue to Report Generation →</button>
+            <button className={bs} onClick={() => setStepAndScroll(engagement.valuationScope === 'equity' ? 7 : 6)}>← Back</button>
+            <button className={bp} onClick={() => { markComplete(8); setStepAndScroll(9) }}>Continue to Report Generation →</button>
           </div>
         </div>)}
 
         {/* ═══ STEP 9 — REPORT ═══════════════════════════════════════════ */}
         {step === 9 && (<div className="space-y-6">
-          {/* Opinion */}
-          <div className="p-6 rounded-2xl bg-[#1F4E79] text-white text-center">
-            <p className="text-sm text-blue-200 mb-1">Valuation Opinion — {engagement.businessName}</p>
-            <p className="text-sm text-blue-200 mb-3">As at {engagement.valuationDate} | Method: Capitalisation of Future Maintainable Earnings ({engagement.valuationMethod})</p>
-            <p className="text-3xl font-bold">
-              {engagement.valuationScope === 'equity' ? `${fmt(valuation.finalLow)} – ${fmt(valuation.finalHigh)}` : `${fmt(valuation.evLow)} – ${fmt(valuation.evHigh)}`}
-            </p>
-            <p className="text-xl font-semibold text-blue-200 mt-1">
-              Most likely value: {engagement.valuationScope === 'equity' ? fmt(valuation.finalMid) : fmt((valuation.evLow+valuation.evHigh)/2)}
-            </p>
-          </div>
-
-          {/* 1. Financial Performance Summary */}
-          <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">1. Financial Performance Summary</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2">Item</th>{years.map(yr => <th key={yr} className="text-right px-3 py-2">FY{yr}</th>)}</tr></thead>
-                <tbody>
-                  {[{l:'Revenue',k:'revenue'},{l:'Cost of Sales',k:'cos'},{l:'Gross Profit',k:'grossProfit'},{l:'Operating Expenses',k:'opex'},{l:'EBITDA',k:'ebitda'},{l:'Net Profit',k:'netProfit'}].map(r => (
-                    <tr key={r.k} className={`border-b ${r.k==='grossProfit'||r.k==='ebitda'||r.k==='netProfit'?'bg-gray-50 font-semibold':''}`}>
-                      <td className="px-3 py-1.5 text-gray-700">{r.l}</td>
-                      {years.map(yr => <td key={yr} className="text-right px-3 py-1.5">{fmt(ebitdaByYear[yr]?.[r.k]||0)}</td>)}
-                    </tr>
-                  ))}
-                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500">Gross Margin</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-gray-500">{ebitdaByYear[yr]?.revenue ? fmtPct(ebitdaByYear[yr].grossProfit/ebitdaByYear[yr].revenue) : '-'}</td>)}</tr>
-                  <tr><td className="px-3 py-1.5 text-gray-500">EBITDA Margin</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-gray-500">{ebitdaByYear[yr]?.revenue ? fmtPct(ebitdaByYear[yr].ebitda/ebitdaByYear[yr].revenue) : '-'}</td>)}</tr>
-                </tbody>
-              </table>
+          
+          {/* Cover / Opinion */}
+          <div className="rounded-2xl overflow-hidden border border-[#1F4E79]">
+            <div className="bg-[#1F4E79] text-white p-8 text-center">
+              <p className="text-xs text-blue-300 tracking-widest uppercase font-semibold mb-2">Business Valuation Report</p>
+              <p className="text-2xl font-bold mb-1">{engagement.businessName || 'Business Name'}</p>
+              <p className="text-sm text-blue-200">{engagement.entityType} | ABN: {engagement.abn || '—'}</p>
+              <div className="w-16 h-0.5 bg-blue-300 mx-auto my-4" />
+              <p className="text-sm text-blue-200">Effective Date: {engagement.valuationDate || '—'}</p>
+              <p className="text-sm text-blue-200">Purpose: {engagement.purpose}</p>
+              <p className="text-sm text-blue-200">Method: Capitalisation of Future Maintainable Earnings ({engagement.valuationMethod})</p>
+              <p className="text-sm text-blue-200">Scope: {engagement.valuationScope === 'equity' ? 'Full Entity (Equity) Value' : 'Enterprise Value Only'}</p>
+            </div>
+            <div className="bg-[#F0F4F8] p-6 text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Assessed Value Range</p>
+              <p className="text-4xl font-bold text-[#1F4E79]">
+                {engagement.valuationScope === 'equity' ? `${fmt(valuation.finalLow)} – ${fmt(valuation.finalHigh)}` : `${fmt(valuation.evLow)} – ${fmt(valuation.evHigh)}`}
+              </p>
+              <p className="text-lg font-semibold text-[#2E75B6] mt-1">
+                Midpoint: {engagement.valuationScope === 'equity' ? fmt(valuation.finalMid) : fmt((valuation.evLow+valuation.evHigh)/2)}
+              </p>
             </div>
           </div>
 
-          {/* 2. Normalisation Schedule */}
+          {/* 1. Engagement Summary */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">2. Normalisation Adjustments</h2>
-            {normItems.length === 0 ? <p className="text-xs text-gray-400 italic">No normalisation adjustments were made.</p> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2">Adjustment</th><th className="text-left px-2 py-2">Category</th><th className="text-left px-2 py-2">Treatment</th>{years.map(yr => <th key={yr} className="text-right px-3 py-2">FY{yr}</th>)}<th className="text-left px-2 py-2">Status</th></tr></thead>
-                  <tbody>
-                    {normItems.map(item => (
-                      <tr key={item.id} className={`border-b ${item.userDecision==='reject'?'opacity-50':''}`}>
-                        <td className="px-3 py-1.5 font-medium">{item.lineItemName}</td>
-                        <td className="px-2 py-1.5 text-[10px]">{NORM_CATEGORIES[item.category]||item.category}</td>
-                        <td className="px-2 py-1.5 text-[10px]">{NORM_TREATMENTS[item.recommendedTreatment]}</td>
-                        {years.map(yr => { const a = item.userDecision==='modify'?(item.userAmount[yr]||0):(item.amounts[yr]||0); return <td key={yr} className="text-right px-3 py-1.5">{a ? fmt(a) : '-'}</td> })}
-                        <td className="px-2 py-1.5"><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${item.userDecision==='accept'?'bg-emerald-100 text-emerald-700':item.userDecision==='reject'?'bg-gray-200 text-gray-500':'bg-amber-100 text-amber-700'}`}>{item.userDecision}</span></td>
-                      </tr>
-                    ))}
-                    <tr className="bg-gray-100 font-bold"><td className="px-3 py-2" colSpan={3}>Normalised EBITDA</td>{years.map(yr => <td key={yr} className="text-right px-3 py-2">{fmt(normalisedEbitdaByYear[yr]||0)}</td>)}<td></td></tr>
-                  </tbody>
-                </table>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">1. Engagement Summary</h2>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <div><span className="text-gray-500">Business:</span> <strong>{engagement.businessName}</strong></div>
+              <div><span className="text-gray-500">Entity Type:</span> <strong>{engagement.entityType}</strong></div>
+              <div><span className="text-gray-500">Industry:</span> <strong>{engagement.industrySector}</strong></div>
+              <div><span className="text-gray-500">ABN:</span> <strong>{engagement.abn || '—'}</strong></div>
+              <div><span className="text-gray-500">Employees:</span> <strong>{engagement.employees || '—'}</strong></div>
+              <div><span className="text-gray-500">Years Trading:</span> <strong>{engagement.yearsTrading || '—'}</strong></div>
+              <div><span className="text-gray-500">Purpose:</span> <strong>{engagement.purpose}</strong></div>
+              <div><span className="text-gray-500">Valuation Date:</span> <strong>{engagement.valuationDate}</strong></div>
+            </div>
+            {engagement.businessDescription && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs font-semibold text-gray-500 mb-1">Business Description</p>
+                <p className="text-sm text-gray-700">{engagement.businessDescription}</p>
               </div>
             )}
           </div>
 
-          {/* 3. FME Derivation */}
+          {/* 2. Financial Performance */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">3. Future Maintainable Earnings (FME)</h2>
-            <table className="w-full text-sm">
-              <thead><tr className="bg-gray-100"><th className="text-left px-3 py-2">Year</th><th className="text-right px-3 py-2">Normalised EBITDA</th><th className="text-right px-3 py-2">Weight</th><th className="text-right px-3 py-2">Weighted Amount</th></tr></thead>
-              <tbody>
-                {weights.map(w => (
-                  <tr key={w.year} className="border-b"><td className="px-3 py-1.5">FY{w.year}</td><td className="text-right px-3 py-1.5">{fmt(normalisedEbitdaByYear[w.year]||0)}</td><td className="text-right px-3 py-1.5">{w.weight}%</td><td className="text-right px-3 py-1.5">{fmt((normalisedEbitdaByYear[w.year]||0)*w.weight/100)}</td></tr>
-                ))}
-                <tr className="bg-[#1F4E79] text-white font-bold"><td className="px-3 py-2">FME</td><td></td><td className="text-right px-3 py-2">100%</td><td className="text-right px-3 py-2">{fmt(fme)}</td></tr>
-              </tbody>
-            </table>
-            {aiWeightReasoning && <p className="text-xs text-gray-600 mt-3 italic bg-gray-50 p-3 rounded-lg">AI weighting rationale: {aiWeightReasoning}</p>}
-          </div>
-
-          {/* 4. Risk Analysis & Multiple */}
-          <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">4. Risk Analysis & EBITDA Multiple</h2>
-            <table className="w-full text-xs">
-              <thead><tr className="bg-gray-100"><th className="text-left px-3 py-2">Risk Factor</th><th className="text-center px-2 py-2">Low Score</th><th className="text-center px-2 py-2">High Score</th><th className="text-left px-3 py-2">Reasoning</th></tr></thead>
-              <tbody>
-                {riskFactors.map(f => (
-                  <tr key={f.id} className="border-b"><td className="px-3 py-1.5 font-medium">{f.name}</td><td className="text-center px-2 py-1.5">{f.scoreLow}/10</td><td className="text-center px-2 py-1.5">{f.scoreHigh}/10</td><td className="px-3 py-1.5 text-gray-600">{f.aiReasoning || '-'}</td></tr>
-                ))}
-                <tr className="bg-gray-100 font-bold"><td className="px-3 py-2">Composite Score</td><td className="text-center px-2 py-2">{compositeScoreLow.toFixed(1)}</td><td className="text-center px-2 py-2">{compositeScoreHigh.toFixed(1)}</td><td></td></tr>
-              </tbody>
-            </table>
-            <div className="mt-3 grid grid-cols-2 gap-4">
-              <div className="bg-[#F0F4F8] p-3 rounded-lg text-center"><p className="text-xs text-gray-500">EBITDA Multiple Range</p><p className="text-lg font-bold text-[#1F4E79]">{multipleLow.toFixed(2)}x – {multipleHigh.toFixed(2)}x</p></div>
-              <div className="bg-[#1F4E79] p-3 rounded-lg text-center text-white"><p className="text-xs text-blue-200">Enterprise Value Range</p><p className="text-lg font-bold">{fmt(valuation.evLow)} – {fmt(valuation.evHigh)}</p></div>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">2. Historical Financial Performance</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2">Item</th>{years.map(yr => <th key={yr} className="text-right px-3 py-2">FY{yr}</th>)}</tr></thead>
+                <tbody>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-700">Revenue</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 font-medium">{fmt(ebitdaByYear[yr]?.revenue||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500 pl-6">Less: Cost of Sales</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5">({fmt(ebitdaByYear[yr]?.cos||0)})</td>)}</tr>
+                  <tr className="border-b bg-emerald-50 font-semibold"><td className="px-3 py-1.5 text-emerald-800">Gross Profit</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-emerald-800">{fmt(ebitdaByYear[yr]?.grossProfit||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500 pl-6">Other Income</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5">{fmt(ebitdaByYear[yr]?.otherIncome||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500 pl-6">Less: Operating Expenses</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5">({fmt(ebitdaByYear[yr]?.opex||0)})</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500 pl-6">Less: Depreciation</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5">({fmt(ebitdaByYear[yr]?.depreciation||0)})</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500 pl-6">Less: Interest</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5">({fmt(ebitdaByYear[yr]?.interest||0)})</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-gray-500 pl-6">Less: Tax</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5">({fmt(ebitdaByYear[yr]?.tax||0)})</td>)}</tr>
+                  <tr className="border-b bg-gray-100 font-semibold"><td className="px-3 py-2 text-gray-800">Net Profit</td>{years.map(yr => <td key={yr} className="text-right px-3 py-2">{fmt(ebitdaByYear[yr]?.netProfit||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-[#2E75B6] pl-6">Add: Depreciation</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-[#2E75B6]">{fmt(ebitdaByYear[yr]?.depreciation||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-[#2E75B6] pl-6">Add: Amortisation</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-[#2E75B6]">{fmt(ebitdaByYear[yr]?.amortisation||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-[#2E75B6] pl-6">Add: Interest</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-[#2E75B6]">{fmt(ebitdaByYear[yr]?.interest||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="px-3 py-1.5 text-[#2E75B6] pl-6">Add: Tax</td>{years.map(yr => <td key={yr} className="text-right px-3 py-1.5 text-[#2E75B6]">{fmt(ebitdaByYear[yr]?.tax||0)}</td>)}</tr>
+                  <tr className="bg-[#1F4E79] text-white font-bold"><td className="px-3 py-2">EBITDA</td>{years.map(yr => <td key={yr} className="text-right px-3 py-2">{fmt(ebitdaByYear[yr]?.ebitda||0)}</td>)}</tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {years.map(yr => (
+                <div key={yr} className="p-2 bg-gray-50 rounded-lg text-center">
+                  <p className="text-[10px] text-gray-500">FY{yr}</p>
+                  <p className="text-xs">GP: <strong>{ebitdaByYear[yr]?.revenue ? fmtPct(ebitdaByYear[yr].grossProfit/ebitdaByYear[yr].revenue) : '-'}</strong> | EBITDA: <strong>{ebitdaByYear[yr]?.revenue ? fmtPct(ebitdaByYear[yr].ebitda/ebitdaByYear[yr].revenue) : '-'}</strong></p>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* 5. Balance Sheet & Equity Build-up */}
-          {engagement.valuationScope === 'equity' && (
-            <div className={sc}>
-              <h2 className="text-lg font-bold text-[#1F4E79] mb-3">5. Balance Sheet Adjustments & Equity Value</h2>
-              <table className="w-full text-sm">
+          {/* 3. Normalisation Schedule */}
+          <div className={sc}>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">3. Normalisation Adjustments</h2>
+            {normItems.length === 0 ? <p className="text-sm text-gray-500 italic">No normalisation adjustments were made. The reported EBITDA has been adopted as the basis for valuation.</p> : (<>
+              <p className="text-xs text-gray-500 mb-3">The following adjustments were considered to convert the reported EBITDA to a normalised basis reflecting sustainable future earnings for a hypothetical purchaser.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2">Adjustment</th><th className="text-left px-2 py-2">Category</th><th className="text-left px-2 py-2">Treatment</th>{years.map(yr => <th key={yr} className="text-right px-3 py-2">FY{yr}</th>)}<th className="text-center px-2 py-2">Status</th></tr></thead>
+                  <tbody>
+                    {normItems.map(item => (
+                      <tr key={item.id} className={`border-b ${item.userDecision==='reject'?'bg-gray-50 opacity-60':''}`}>
+                        <td className="px-3 py-1.5 font-medium">{item.lineItemName}</td>
+                        <td className="px-2 py-1.5"><span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#1F4E79] text-white font-medium">{NORM_CATEGORIES[item.category]||item.category}</span></td>
+                        <td className="px-2 py-1.5 text-[10px]">{NORM_TREATMENTS[item.recommendedTreatment]}</td>
+                        {years.map(yr => { const a = item.userDecision==='modify'?(item.userAmount[yr]||0):(item.amounts[yr]||0); return <td key={yr} className={`text-right px-3 py-1.5 ${a>0?'text-emerald-700':a<0?'text-red-600':''}`}>{a ? fmt(a) : '-'}</td> })}
+                        <td className="text-center px-2 py-1.5"><span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${item.userDecision==='accept'?'bg-emerald-100 text-emerald-800':item.userDecision==='reject'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-800'}`}>{item.userDecision==='accept'?'✓ Accepted':item.userDecision==='reject'?'✗ Rejected':'✎ Modified'}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <table className="w-full text-sm mt-2">
                 <tbody>
-                  <tr className="bg-blue-50 border-b"><td className="py-2 px-3 font-bold text-[#1F4E79]">Enterprise Value (Low / High)</td><td className="text-right py-2 px-3 font-bold text-[#1F4E79]">{fmt(valuation.evLow)} / {fmt(valuation.evHigh)}</td></tr>
-                  
-                  <tr className="border-b bg-emerald-50/50"><td colSpan={2} className="py-1.5 px-3 font-semibold text-emerald-800 text-xs">➕ Assets Transferring to Buyer</td></tr>
-                  {bsItems.filter(b => b.classification === 'transfer_asset').map(b => (
-                    <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}</td><td className="text-right py-1 px-3 text-xs text-emerald-700">{fmt(b.adjustedValue || (b.amounts[years[0]]||0))}</td></tr>
-                  ))}
-                  <tr className="border-b bg-emerald-50"><td className="py-1.5 px-3 pl-6 font-semibold text-xs text-emerald-800">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-emerald-800">{fmt(valuation.transferAssets)}</td></tr>
-
-                  <tr className="border-b bg-orange-50/50"><td colSpan={2} className="py-1.5 px-3 font-semibold text-orange-800 text-xs">➖ Liabilities Transferring to Buyer</td></tr>
-                  {bsItems.filter(b => b.classification === 'transfer_liability').map(b => (
-                    <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}</td><td className="text-right py-1 px-3 text-xs text-orange-700">({fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]]||0)))})</td></tr>
-                  ))}
-                  <tr className="border-b bg-orange-50"><td className="py-1.5 px-3 pl-6 font-semibold text-xs text-orange-800">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-orange-800">({fmt(valuation.transferLiabilities)})</td></tr>
-
-                  <tr className="border-b bg-gray-100"><td className="py-2 px-3 font-semibold text-gray-700">Net Transferring to Buyer</td><td className="text-right py-2 px-3 font-bold text-gray-800">{fmt(valuation.netTransferring)}</td></tr>
-
-                  {valuation.surplusAssets > 0 && (<>
-                    <tr className="border-b bg-blue-50/50"><td colSpan={2} className="py-1.5 px-3 font-semibold text-blue-800 text-xs">⭐ Surplus Assets</td></tr>
-                    {bsItems.filter(b => b.classification === 'surplus').map(b => (
-                      <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}</td><td className="text-right py-1 px-3 text-xs text-blue-700">{fmt(b.adjustedValue || (b.amounts[years[0]]||0))}</td></tr>
-                    ))}
-                    <tr className="border-b bg-blue-50"><td className="py-1.5 px-3 pl-6 font-semibold text-xs text-blue-800">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-blue-800">{fmt(valuation.surplusAssets)}</td></tr>
-                  </>)}
-
-                  {valuation.netDebt > 0 && (<>
-                    <tr className="border-b bg-red-50/50"><td colSpan={2} className="py-1.5 px-3 font-semibold text-red-800 text-xs">🏦 Interest-Bearing Debt</td></tr>
-                    {bsItems.filter(b => b.classification === 'debt').map(b => (
-                      <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}</td><td className="text-right py-1 px-3 text-xs text-red-700">({fmt(Math.abs(b.adjustedValue || (b.amounts[years[0]]||0)))})</td></tr>
-                    ))}
-                    <tr className="border-b bg-red-50"><td className="py-1.5 px-3 pl-6 font-semibold text-xs text-red-800">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-red-800">({fmt(valuation.netDebt)})</td></tr>
-                  </>)}
-
-                  <tr className="bg-gray-200"><td className="py-2 px-3 font-bold text-gray-800">Total Balance Sheet Adjustment</td><td className="text-right py-2 px-3 font-bold text-gray-900">{fmt(valuation.netBsAdjustment)}</td></tr>
-                  <tr className="bg-[#1F4E79] text-white"><td className="py-3 px-3 font-bold text-lg">Equity Value (Low / High)</td><td className="text-right py-3 px-3 font-bold text-lg">{fmt(valuation.eqLow)} / {fmt(valuation.eqHigh)}</td></tr>
-                  <tr className="bg-[#2E75B6] text-white"><td className="py-3 px-3 font-bold text-lg">Midpoint Value</td><td className="text-right py-3 px-3 font-bold text-2xl">{fmt(valuation.eqMid)}</td></tr>
+                  <tr className="border-b"><td className="py-1.5 text-gray-600">Reported EBITDA</td>{years.map(yr => <td key={yr} className="text-right py-1.5">{fmt(ebitdaByYear[yr]?.ebitda||0)}</td>)}</tr>
+                  <tr className="border-b"><td className="py-1.5 text-gray-600">Net Adjustments (accepted)</td>{years.map(yr => { const adj = (normalisedEbitdaByYear[yr]||0)-(ebitdaByYear[yr]?.ebitda||0); return <td key={yr} className={`text-right py-1.5 ${adj>0?'text-emerald-700':adj<0?'text-red-600':''}`}>{fmt(adj)}</td> })}</tr>
+                  <tr className="bg-[#1F4E79] text-white font-bold"><td className="py-2 px-2">Normalised EBITDA</td>{years.map(yr => <td key={yr} className="text-right py-2 px-2">{fmt(normalisedEbitdaByYear[yr]||0)}</td>)}</tr>
                 </tbody>
               </table>
+            </>)}
+          </div>
 
+          {/* 4. FME Derivation */}
+          <div className={sc}>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">4. Future Maintainable Earnings (FME)</h2>
+            <p className="text-xs text-gray-500 mb-3">The normalised EBITDA for each year is weighted to derive a single earnings figure representing the sustainable future earning capacity of the business.</p>
+            <table className="w-full text-sm">
+              <thead><tr className="bg-gray-100"><th className="text-left px-3 py-2">Year</th><th className="text-right px-3 py-2">Normalised EBITDA</th><th className="text-right px-3 py-2">Weight</th><th className="text-right px-3 py-2">Contribution</th></tr></thead>
+              <tbody>
+                {weights.map(w => (
+                  <tr key={w.year} className="border-b"><td className="px-3 py-2">FY{w.year}</td><td className="text-right px-3 py-2">{fmt(normalisedEbitdaByYear[w.year]||0)}</td><td className="text-right px-3 py-2">{w.weight}%</td><td className="text-right px-3 py-2 font-medium">{fmt((normalisedEbitdaByYear[w.year]||0)*w.weight/100)}</td></tr>
+                ))}
+                <tr className="bg-[#1F4E79] text-white font-bold"><td className="px-3 py-2" colSpan={2}>Future Maintainable Earnings (FME)</td><td className="text-right px-3 py-2">100%</td><td className="text-right px-3 py-2 text-lg">{fmt(fme)}</td></tr>
+              </tbody>
+            </table>
+            {aiWeightReasoning && (<div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200"><p className="text-xs font-semibold text-blue-700 mb-1">Weighting Rationale</p><p className="text-xs text-blue-800">{aiWeightReasoning}</p></div>)}
+          </div>
+
+          {/* 5. Risk Analysis & Multiple Derivation */}
+          <div className={sc}>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">5. Risk Assessment & Multiple Derivation</h2>
+            <p className="text-xs text-gray-500 mb-3">Six risk factors are assessed to derive an appropriate EBITDA capitalisation multiple. Each factor is scored 0 (lowest risk) to 10 (highest risk).</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2 w-[25%]">Risk Factor</th><th className="text-center px-2 py-2 w-[8%]">Low</th><th className="text-center px-2 py-2 w-[8%]">High</th><th className="text-left px-3 py-2">Assessment</th></tr></thead>
+                <tbody>
+                  {riskFactors.map(f => (
+                    <tr key={f.id} className="border-b align-top"><td className="px-3 py-2 font-semibold text-[#1F4E79]">{f.name}</td><td className="text-center px-2 py-2"><span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">{f.scoreLow}</span></td><td className="text-center px-2 py-2"><span className="inline-block px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-bold">{f.scoreHigh}</span></td><td className="px-3 py-2 text-gray-600">{f.aiReasoning || '—'}</td></tr>
+                  ))}
+                  <tr className="bg-gray-100 font-bold"><td className="px-3 py-2">Composite Risk Score</td><td className="text-center px-2 py-2 text-emerald-800">{compositeScoreLow.toFixed(1)}</td><td className="text-center px-2 py-2 text-orange-800">{compositeScoreHigh.toFixed(1)}</td><td className="px-3 py-2 text-gray-500 font-normal text-[10px]">Weighted average (equal weighting)</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 p-4 bg-[#F0F4F8] rounded-xl">
+              <p className="text-xs text-gray-500 mb-3">Multiple derivation: risk score mapped to EBITDA multiple via linear interpolation (Score 2→5.0x, Score 5→3.0x, Score 9→1.0x, capped 1.0x–6.0x for Australian SMEs).</p>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-white rounded-lg shadow-sm"><p className="text-[10px] text-gray-500">EBITDA Multiple</p><p className="text-lg font-bold text-[#1F4E79]">{multipleLow.toFixed(2)}x – {multipleHigh.toFixed(2)}x</p></div>
+                <div className="text-center p-3 bg-white rounded-lg shadow-sm"><p className="text-[10px] text-gray-500">FME</p><p className="text-lg font-bold text-[#1F4E79]">{fmt(fme)}</p></div>
+                <div className="text-center p-3 bg-[#1F4E79] rounded-lg text-white"><p className="text-[10px] text-blue-200">Enterprise Value</p><p className="text-lg font-bold">{fmt(valuation.evLow)} – {fmt(valuation.evHigh)}</p></div>
+              </div>
+            </div>
+            {industryAnalysis && (<div className="mt-4 p-4 bg-gray-50 rounded-lg border"><p className="text-xs font-semibold text-gray-700 mb-2">Industry Analysis</p><p className="text-xs text-gray-600 whitespace-pre-line">{industryAnalysis}</p></div>)}
+          </div>
+
+          {/* 6. Balance Sheet & Equity Build-up */}
+          {engagement.valuationScope === 'equity' && (
+            <div className={sc}>
+              <h2 className="text-lg font-bold text-[#1F4E79] mb-3">6. Balance Sheet Adjustments & Equity Value</h2>
+              <p className="text-xs text-gray-500 mb-3">Each balance sheet item is classified to determine its treatment. Operating fixed assets are within the enterprise value. All other items are separately added or deducted.</p>
+              {bsItems.filter(b => b.classification === 'in_ev').length > 0 && (
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border"><p className="text-xs font-semibold text-gray-600 mb-1">🔧 Operating Fixed Assets (within enterprise value — reference only)</p><div className="flex flex-wrap gap-3">{bsItems.filter(b => b.classification === 'in_ev').map(b => (<span key={b.id} className="text-xs text-gray-500">{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]]||0))}</span>))}</div></div>
+              )}
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="bg-blue-50 border-b-2 border-[#1F4E79]"><td className="py-2.5 px-3 font-bold text-[#1F4E79]">Enterprise Value</td><td className="text-right py-2.5 px-3 font-bold text-[#1F4E79]">{fmt(valuation.evLow)}</td><td className="text-right py-2.5 px-3 font-bold text-[#1F4E79]">{fmt(valuation.evHigh)}</td></tr>
+                  <tr className="bg-emerald-50/60"><td colSpan={3} className="py-1.5 px-3 font-semibold text-emerald-800 text-xs border-b">➕ Assets Transferring to Buyer</td></tr>
+                  {bsItems.filter(b => b.classification === 'transfer_asset').map(b => { const v = b.adjustedValue || (b.amounts[years[0]]||0); return <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}{b.userNotes ? <span className="text-gray-400 ml-1">— {b.userNotes}</span> : ''}</td><td className="text-right py-1 px-3 text-xs text-emerald-700" colSpan={2}>{fmt(v)}</td></tr> })}
+                  <tr className="bg-emerald-50 border-b"><td className="py-1.5 px-3 font-semibold text-xs text-emerald-900">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-emerald-900" colSpan={2}>{fmt(valuation.transferAssets)}</td></tr>
+                  <tr className="bg-orange-50/60"><td colSpan={3} className="py-1.5 px-3 font-semibold text-orange-800 text-xs border-b">➖ Liabilities Transferring to Buyer</td></tr>
+                  {bsItems.filter(b => b.classification === 'transfer_liability').map(b => { const v = Math.abs(b.adjustedValue || (b.amounts[years[0]]||0)); return <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}{b.userNotes ? <span className="text-gray-400 ml-1">— {b.userNotes}</span> : ''}</td><td className="text-right py-1 px-3 text-xs text-orange-700" colSpan={2}>({fmt(v)})</td></tr> })}
+                  <tr className="bg-orange-50 border-b"><td className="py-1.5 px-3 font-semibold text-xs text-orange-900">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-orange-900" colSpan={2}>({fmt(valuation.transferLiabilities)})</td></tr>
+                  <tr className="bg-gray-100 border-b"><td className="py-2 px-3 font-bold text-gray-800">Net Transferring to Buyer</td><td className="text-right py-2 px-3 font-bold text-gray-800" colSpan={2}>{fmt(valuation.netTransferring)}</td></tr>
+                  {valuation.surplusAssets > 0 && (<><tr className="bg-blue-50/60"><td colSpan={3} className="py-1.5 px-3 font-semibold text-blue-800 text-xs border-b">⭐ Surplus Assets</td></tr>{bsItems.filter(b => b.classification === 'surplus').map(b => { const v = b.adjustedValue || (b.amounts[years[0]]||0); return <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}</td><td className="text-right py-1 px-3 text-xs text-blue-700" colSpan={2}>{fmt(v)}</td></tr> })}<tr className="bg-blue-50 border-b"><td className="py-1.5 px-3 font-semibold text-xs text-blue-900">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-blue-900" colSpan={2}>{fmt(valuation.surplusAssets)}</td></tr></>)}
+                  {valuation.netDebt > 0 && (<><tr className="bg-red-50/60"><td colSpan={3} className="py-1.5 px-3 font-semibold text-red-800 text-xs border-b">🏦 Interest-Bearing Debt</td></tr>{bsItems.filter(b => b.classification === 'debt').map(b => { const v = Math.abs(b.adjustedValue || (b.amounts[years[0]]||0)); return <tr key={b.id} className="border-b border-gray-100"><td className="py-1 px-3 pl-6 text-xs text-gray-600">{b.name}</td><td className="text-right py-1 px-3 text-xs text-red-700" colSpan={2}>({fmt(v)})</td></tr> })}<tr className="bg-red-50 border-b"><td className="py-1.5 px-3 font-semibold text-xs text-red-900">Subtotal</td><td className="text-right py-1.5 px-3 font-bold text-red-900" colSpan={2}>({fmt(valuation.netDebt)})</td></tr></>)}
+                  <tr className="bg-gray-200 border-b"><td className="py-2 px-3 font-bold text-gray-800">Total Balance Sheet Adjustment</td><td className="text-right py-2 px-3 font-bold text-gray-900" colSpan={2}>{fmt(valuation.netBsAdjustment)}</td></tr>
+                  <tr className="bg-[#1F4E79] text-white"><td className="py-3 px-3 font-bold">Equity Value</td><td className="text-right py-3 px-3 font-bold">{fmt(valuation.eqLow)}</td><td className="text-right py-3 px-3 font-bold">{fmt(valuation.eqHigh)}</td></tr>
+                  <tr className="bg-[#2E75B6] text-white"><td className="py-3 px-3 font-bold text-lg" colSpan={2}>Midpoint Equity Value</td><td className="text-right py-3 px-3 font-bold text-2xl">{fmt(valuation.eqMid)}</td></tr>
+                </tbody>
+              </table>
               {(discounts.applyMinority || discounts.applyMarketability) && (
-                <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  <p className="text-sm font-semibold text-amber-800">After Discounts:</p>
-                  {discounts.applyMinority && <p className="text-xs text-amber-700">Minority discount: {discounts.minorityDiscount}% — {discounts.minorityReasoning}</p>}
-                  {discounts.applyMarketability && <p className="text-xs text-amber-700">Marketability discount: {discounts.marketabilityDiscount}% — {discounts.marketabilityReasoning}</p>}
-                  <p className="text-lg font-bold text-amber-900 mt-1">Adjusted: {fmt(valuation.finalLow)} – {fmt(valuation.finalHigh)} (midpoint: {fmt(valuation.finalMid)})</p>
+                <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="text-sm font-bold text-amber-900 mb-2">Discounts Applied</p>
+                  {discounts.applyMinority && <p className="text-xs text-amber-700">Minority discount: {discounts.minorityDiscount}%{discounts.minorityReasoning ? ` — ${discounts.minorityReasoning}` : ''}</p>}
+                  {discounts.applyMarketability && <p className="text-xs text-amber-700">Marketability discount: {discounts.marketabilityDiscount}%{discounts.marketabilityReasoning ? ` — ${discounts.marketabilityReasoning}` : ''}</p>}
+                  <p className="text-lg font-bold text-amber-900 mt-2">Post-discount: {fmt(valuation.finalLow)} – {fmt(valuation.finalHigh)} (midpoint: {fmt(valuation.finalMid)})</p>
                 </div>
               )}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
+                <p className="text-xs font-semibold text-gray-600 mb-1">Implied Goodwill</p>
+                <p className="text-xs text-gray-500">Enterprise Value (mid): {fmt((valuation.evLow+valuation.evHigh)/2)} less Operating Fixed Assets: {fmt(valuation.inEvAssets)} = <strong>{fmt((valuation.evLow+valuation.evHigh)/2 - valuation.inEvAssets)}</strong></p>
+              </div>
             </div>
           )}
 
-          {/* 6. Cross-Checks */}
+          {/* 7. Cross-Checks */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">6. Cross-Checks</h2>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">{engagement.valuationScope === 'equity' ? '7' : '6'}. Cross-Checks & Reasonableness</h2>
             <div className="grid grid-cols-2 gap-4 mb-3">
-              <div className="p-3 bg-gray-50 rounded-lg"><p className="text-[10px] text-gray-500">Implied Revenue Multiple</p><p className="text-sm font-bold">{valuation.impliedRevMultLow.toFixed(2)}x – {valuation.impliedRevMultHigh.toFixed(2)}x revenue</p></div>
-              <div className="p-3 bg-gray-50 rounded-lg"><p className="text-[10px] text-gray-500">Equipment Floor Value (operating fixed assets)</p><p className="text-sm font-bold">{fmt(valuation.equipmentFloor)}</p></div>
+              <div className="p-4 bg-[#F0F4F8] rounded-xl border"><p className="text-[10px] text-gray-500 mb-1">Implied Revenue Multiple</p><p className="text-lg font-bold text-[#1F4E79]">{valuation.impliedRevMultLow.toFixed(2)}x – {valuation.impliedRevMultHigh.toFixed(2)}x</p><p className="text-xs text-gray-500 mt-1">Based on revenue of {fmt(ebitdaByYear[years[0]]?.revenue||0)}</p></div>
+              <div className="p-4 bg-[#F0F4F8] rounded-xl border"><p className="text-[10px] text-gray-500 mb-1">Equipment Floor Value</p><p className="text-lg font-bold text-[#1F4E79]">{fmt(valuation.equipmentFloor)}</p><p className="text-xs text-gray-500 mt-1">Realisable value of operating fixed assets</p></div>
             </div>
-            {valuation.floorExceeded && <p className="text-xs text-red-600 bg-red-50 p-2 rounded">⚠️ Equipment floor ({fmt(valuation.equipmentFloor)}) exceeds enterprise value ({fmt(valuation.evHigh)}). Consider break-up basis.</p>}
+            {valuation.floorExceeded && (<div className="p-3 bg-red-50 border border-red-300 rounded-lg"><p className="text-sm font-bold text-red-700">⚠️ Equipment Floor Exceeds Enterprise Value</p><p className="text-xs text-red-600 mt-1">Tangible assets ({fmt(valuation.equipmentFloor)}) exceed enterprise value ({fmt(valuation.evHigh)}). Consider break-up basis.</p></div>)}
           </div>
 
-          {/* 7. Sensitivity */}
+          {/* 8. Sensitivity Analysis */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">7. Sensitivity Analysis</h2>
-            <table className="w-full text-xs">
-              <thead><tr className="bg-[#1F4E79] text-white"><th className="px-3 py-2">FME ↓ / Multiple →</th><th className="text-right px-3 py-2">{multipleLow.toFixed(1)}x</th><th className="text-right px-3 py-2">{((multipleLow+multipleHigh)/2).toFixed(1)}x</th><th className="text-right px-3 py-2">{multipleHigh.toFixed(1)}x</th></tr></thead>
-              <tbody>
-                {['Conservative','Base','Optimistic'].map((label, i) => (
-                  <tr key={label} className={`border-b ${i===1?'bg-[#F0F4F8] font-bold':''}`}><td className="px-3 py-2">{label} ({fmt(fme*(i===0?0.85:i===1?1:1.15))})</td>{sensitivity[i].map((v,j) => <td key={j} className={`text-right px-3 py-2 ${i===1&&j===1?'text-[#1F4E79] font-bold':''}`}>{fmt(v)}</td>)}</tr>
-                ))}
-              </tbody>
-            </table>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">{engagement.valuationScope === 'equity' ? '8' : '7'}. Sensitivity Analysis</h2>
+            <p className="text-xs text-gray-500 mb-3">Enterprise value under different FME (±15%) and multiple assumptions. Highlighted cell is the base case.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="bg-[#1F4E79] text-white"><th className="px-4 py-2.5 text-left">FME Scenario</th><th className="text-right px-4 py-2.5">{multipleLow.toFixed(1)}x (Low)</th><th className="text-right px-4 py-2.5">{((multipleLow+multipleHigh)/2).toFixed(1)}x (Mid)</th><th className="text-right px-4 py-2.5">{multipleHigh.toFixed(1)}x (High)</th></tr></thead>
+                <tbody>
+                  {['Conservative (85%)','Base (100%)','Optimistic (115%)'].map((label, i) => (
+                    <tr key={label} className={`border-b ${i===1?'bg-[#F0F4F8]':''}`}><td className={`px-4 py-2.5 ${i===1?'font-bold':''}`}>{label} <span className="text-gray-400">{fmt(fme*(i===0?0.85:i===1?1:1.15))}</span></td>{sensitivity[i].map((v,j) => <td key={j} className={`text-right px-4 py-2.5 ${i===1&&j===1?'font-bold text-[#1F4E79] bg-blue-100 rounded':''}`}>{fmt(v)}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Disclaimers */}
           <div className={sc}>
-            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Disclaimers & Limitations</h2>
-            <div className="text-xs text-gray-600 space-y-2">
-              <p>This valuation has been prepared using the Capitalisation of Future Maintainable Earnings method and is based on financial information provided. It represents an estimate of value only and should not be relied upon as formal valuation advice without independent professional review.</p>
-              <p>The valuation is based on economic, market and other conditions prevailing at the valuation date. Such conditions can change significantly over relatively short periods of time.</p>
-              <p>No audit or verification of the underlying financial information has been performed. The accuracy of this valuation is dependent on the completeness and accuracy of the information provided.</p>
-              <p>This tool is aligned with the principles of APES 225 Valuation Services but the output constitutes a calculation engagement only. Users should obtain independent professional advice before making decisions based on this valuation.</p>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Important Disclaimers & Limitations</h2>
+            <div className="text-xs text-gray-600 space-y-3 leading-relaxed">
+              <p><strong>Basis of valuation:</strong> This valuation has been prepared using the Capitalisation of Future Maintainable Earnings method. It represents an estimate of fair market value — the price negotiated in an open, unrestricted market between knowledgeable, willing but not anxious parties acting at arm&apos;s length.</p>
+              <p><strong>Financial information:</strong> No audit or independent verification of the underlying financial information has been performed. The accuracy of this valuation depends on the completeness and accuracy of the information provided.</p>
+              <p><strong>Economic conditions:</strong> This valuation is based on conditions prevailing at the valuation date of {engagement.valuationDate}. Conditions can change significantly over short periods.</p>
+              <p><strong>Professional standards:</strong> This output is aligned with APES 225 Valuation Services principles but constitutes a <strong>calculation engagement</strong> only. For a formal valuation engagement, the output should be independently reviewed by a qualified valuer.</p>
+              <p><strong>Limitation of liability:</strong> This valuation is provided for the stated purpose only. Users should obtain independent professional advice before making decisions based on this output. Consultants for Accountants Pty Ltd accepts no liability for loss arising from use of this tool.</p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-[10px] text-gray-400">Prepared using BAKR Business Valuation Tool — Consultants for Accountants Pty Ltd | bakr.com.au</p>
             </div>
           </div>
 
-          {/* DOCX placeholder */}
+          {/* Phase 3 note */}
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <p className="text-sm font-semibold text-amber-800">📄 DOCX Report Generation — Coming in Phase 3</p>
-            <p className="text-xs text-amber-700 mt-1">A downloadable Word document containing all the above calculations, narrative sections, and appendices will be available in the next update.</p>
+            <p className="text-sm font-semibold text-amber-800">📄 DOCX Report Download — Coming Soon</p>
+            <p className="text-xs text-amber-700 mt-1">A downloadable Word document containing all of the above in a formatted, client-ready report will be available in the next update.</p>
           </div>
 
           <div className="flex justify-start">
-            <button className={bs} onClick={() => setStep(8)}>← Back to Valuation</button>
+            <button className={bs} onClick={() => setStepAndScroll(8)}>← Back to Valuation</button>
           </div>
         </div>)}
       </div>
