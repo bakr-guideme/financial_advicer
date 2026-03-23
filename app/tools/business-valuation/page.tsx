@@ -685,9 +685,12 @@ CRITICAL RULES:
               <h1 className="text-2xl font-bold">Business Valuation Tool</h1>
               <p className="text-sm text-blue-200 mt-0.5">Capitalisation of Future Maintainable Earnings</p>
             </div>
-            <div className="text-right text-xs text-blue-200">
+            <div className="text-right text-xs text-blue-200 flex flex-col items-end gap-1">
               <div>BAKR by CforA</div>
-              <span className="mt-1 px-2 py-0.5 bg-amber-500/20 text-amber-200 rounded text-[10px] font-medium">BETA</span>
+              <div className="flex items-center gap-2">
+                <a href="/guides/business-valuation-guide.html" target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-white/15 hover:bg-white/25 text-white rounded-full text-[11px] font-semibold transition flex items-center gap-1">📘 User Guide</a>
+                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-200 rounded text-[10px] font-medium">BETA</span>
+              </div>
             </div>
           </div>
         </div>

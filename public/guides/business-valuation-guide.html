@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BAKR Business Valuation Tool — User Guide</title>
+<style>
+  :root {
+    --navy: #1F4E79;
+    --blue: #2E75B6;
+    --cream: #F8F6EC;
+    --light: #F0F4F8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--cream); color: #333; line-height: 1.7; }
+  
+  /* Header */
+  .header { background: var(--navy); color: white; padding: 2rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .header h1 { font-size: 1.5rem; font-weight: 700; }
+  .header p { font-size: 0.85rem; color: #93c5fd; margin-top: 0.25rem; }
+  .header-inner { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+  .header-badge { background: rgba(255,255,255,0.15); padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+  
+  /* Navigation */
+  .step-nav { background: white; border-bottom: 1px solid #e5e7eb; position: sticky; top: 72px; z-index: 90; overflow-x: auto; }
+  .step-nav-inner { max-width: 900px; margin: 0 auto; display: flex; gap: 0; }
+  .step-nav a { padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.2s; }
+  .step-nav a:hover { color: var(--navy); background: var(--light); }
+  .step-nav a.active { color: var(--navy); border-bottom-color: var(--navy); }
+  
+  /* Main content */
+  .content { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  
+  /* Sections */
+  .section { background: white; border-radius: 1rem; border: 1px solid #e5e7eb; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .section h2 { font-size: 1.3rem; color: var(--navy); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+  .section h2 .step-num { background: var(--navy); color: white; width: 2rem; height: 2rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+  .section h3 { font-size: 1rem; color: var(--blue); margin: 1.5rem 0 0.5rem; }
+  .section p { margin-bottom: 0.75rem; font-size: 0.9rem; }
+  
+  /* Expandable detail sections */
+  .detail-toggle { background: var(--light); border: 1px solid #d1d5db; border-radius: 0.75rem; margin: 1rem 0; overflow: hidden; }
+  .detail-toggle summary { padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--navy); display: flex; align-items: center; gap: 0.5rem; user-select: none; }
+  .detail-toggle summary:hover { background: #e2e8f0; }
+  .detail-toggle summary::before { content: '▶'; font-size: 0.65rem; transition: transform 0.2s; }
+  .detail-toggle[open] summary::before { transform: rotate(90deg); }
+  .detail-toggle .detail-content { padding: 0 1rem 1rem; font-size: 0.85rem; }
+  .detail-toggle .detail-content p { margin-bottom: 0.5rem; }
+  
+  /* Resource links */
+  .resource-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .resource-link { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; text-decoration: none; transition: all 0.2s; }
+  .resource-link.ml { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .resource-link.ml:hover { background: #bfdbfe; }
+  .resource-link.ae { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .resource-link.ae:hover { background: #a7f3d0; }
+  
+  /* Example boxes */
+  .example { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0; }
+  .example-title { font-weight: 700; font-size: 0.8rem; color: #92400e; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem; }
+  .example p, .example li { font-size: 0.85rem; }
+  
+  /* Warning/tip boxes */
+  .tip { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0; }
+  .tip-title { font-weight: 700; font-size: 0.8rem; color: #1e40af; margin-bottom: 0.25rem; }
+  .warning { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0; }
+  .warning-title { font-weight: 700; font-size: 0.8rem; color: #991b1b; margin-bottom: 0.25rem; }
+  
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+  th { background: var(--navy); color: white; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.8rem; }
+  td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e7eb; }
+  tr:nth-child(even) { background: #f9fafb; }
+  .amount { text-align: right; font-family: 'Courier New', monospace; }
+  
+  /* Lists */
+  ul, ol { margin: 0.5rem 0 0.75rem 1.5rem; font-size: 0.9rem; }
+  li { margin-bottom: 0.35rem; }
+  
+  /* Inline code */
+  code { background: #f1f5f9; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.8rem; color: var(--navy); }
+  
+  /* Keyboard shortcuts */
+  kbd { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.25rem; padding: 0.1rem 0.4rem; font-size: 0.75rem; font-family: inherit; box-shadow: 0 1px 0 #d1d5db; }
+  
+  /* Footer */
+  .footer { text-align: center; padding: 2rem; font-size: 0.75rem; color: #9ca3af; }
+  
+  /* Print */
+  @media print {
+    .header, .step-nav { position: static; }
+    .detail-toggle { break-inside: avoid; }
+    .detail-toggle[open] .detail-content { display: block; }
+  }
+  
+  /* Mobile */
+  @media (max-width: 640px) {
+    .content { padding: 1rem; }
+    .section { padding: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>📘 Business Valuation Tool — User Guide</h1>
+      <p>Step-by-step instructions for accountants and business owners</p>
+    </div>
+    <span class="header-badge">BAKR by CforA</span>
+  </div>
+</div>
+
+<!-- Step Navigation -->
+<div class="step-nav">
+  <div class="step-nav-inner">
+    <a href="#overview">Overview</a>
+    <a href="#step1">1. Setup</a>
+    <a href="#step2">2. Data</a>
+    <a href="#step3">3. EBITDA</a>
+    <a href="#step4">4. Normalise</a>
+    <a href="#step5">5. Weighting</a>
+    <a href="#step6">6. Risk</a>
+    <a href="#step7">7. Balance Sheet</a>
+    <a href="#step8">8. Valuation</a>
+    <a href="#step9">9. Report</a>
+    <a href="#glossary">Glossary</a>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- OVERVIEW -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="overview">
+  <h2>What This Tool Does</h2>
+  <p>This tool helps you estimate the fair market value of a business using the <strong>Capitalisation of Future Maintainable Earnings (CFME)</strong> method — the most commonly used valuation approach for Australian small and medium businesses.</p>
+  <p>In plain English: it looks at how much profit the business makes, adjusts for unusual items, and multiplies by a factor that reflects how risky the business is. It then adds or subtracts balance sheet items to arrive at the total value of the shares.</p>
+  
+  <h3>Who is this for?</h3>
+  <ul>
+    <li><strong>Business owners</strong> wanting to understand what their business is worth before selling, buying, or planning succession</li>
+    <li><strong>Accountants</strong> preparing draft valuation reports for clients — the tool does 80% of the analytical work and produces a structured output you can refine</li>
+    <li><strong>Advisers</strong> needing a quick but defensible estimate for family law, insurance, or strategic planning purposes</li>
+  </ul>
+
+  <h3>The 9-Step Process</h3>
+  <table>
+    <tr><th>Step</th><th>What You Do</th><th>Time</th></tr>
+    <tr><td>1. Setup</td><td>Enter business details, choose valuation method</td><td>2 min</td></tr>
+    <tr><td>2. Data</td><td>Upload financial statements (PDF), AI parses them</td><td>2 min</td></tr>
+    <tr><td>3. EBITDA</td><td>Review the calculated EBITDA</td><td>1 min</td></tr>
+    <tr><td>4. Normalise</td><td>Adjust for owner/personal/one-off expenses</td><td>5-10 min</td></tr>
+    <tr><td>5. Weighting</td><td>Weight each year's earnings to derive FME</td><td>3 min</td></tr>
+    <tr><td>6. Risk & Multiple</td><td>Score risk factors to determine the EBITDA multiple</td><td>5 min</td></tr>
+    <tr><td>7. Balance Sheet</td><td>Classify assets and liabilities</td><td>5 min</td></tr>
+    <tr><td>8. Valuation</td><td>Review the calculated value</td><td>2 min</td></tr>
+    <tr><td>9. Report</td><td>Review detailed calculation summary</td><td>5 min</td></tr>
+  </table>
+
+  <div class="tip">
+    <div class="tip-title">💡 Before you start</div>
+    <p>Gather the business's financial statements (Profit &amp; Loss and Balance Sheet) for at least the last 2 years, preferably 3. The accountant's annual report as a single PDF is ideal — the tool will extract everything it needs.</p>
+  </div>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: What is a business valuation?</summary>
+    <div class="detail-content">
+      <p>A business valuation estimates what a willing buyer would pay a willing seller for a business, where neither is under pressure to transact. It's needed for:</p>
+      <ul>
+        <li><strong>Selling or buying</strong> — sets the starting point for negotiations</li>
+        <li><strong>Succession planning</strong> — determines the value for transferring to the next generation</li>
+        <li><strong>Family law</strong> — courts require valuations when dividing matrimonial assets</li>
+        <li><strong>Tax purposes</strong> — CGT events, share issues, and reorganisations need documented market values</li>
+        <li><strong>Insurance</strong> — ensuring adequate cover for business interruption or key person loss</li>
+      </ul>
+      <p>In Australia, formal valuations are governed by <strong>APES 225 Valuation Services</strong>, issued by the Accounting Professional and Ethical Standards Board. This tool aligns with APES 225 principles but produces a "calculation engagement" — meaning you've agreed the method and the tool applies it. For a formal "valuation engagement," an independent professional valuer should review and sign off on the output.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: Understanding Business Valuations</a>
+        <a href="#" class="resource-link ae">📋 AE: APES 225 Overview for Practitioners</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 1 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step1">
+  <h2><span class="step-num">1</span> Engagement Setup</h2>
+  <p>This step collects basic information about the business and your valuation parameters. Everything entered here flows into the final report.</p>
+  
+  <h3>Required Fields</h3>
+  <ul>
+    <li><strong>Business Name</strong> — the legal entity name (e.g., "Smith & Co Pty Ltd")</li>
+    <li><strong>Valuation Date</strong> — the effective date of the valuation, usually the most recent financial year end (e.g., "30/06/2024"). Type it in any format.</li>
+    <li><strong>Industry Sector</strong> — select the closest match. This feeds the AI's industry analysis and helps determine appropriate multiples.</li>
+    <li><strong>Business Description</strong> — write at least a paragraph describing what the business does, its key products/services, competitive position, and markets. The AI uses this extensively — more detail produces a better report.</li>
+  </ul>
+
+  <h3>Valuation Method: EBITDA vs SDE</h3>
+  <p>You must choose between two methods. This is an important decision:</p>
+  <table>
+    <tr><th>Method</th><th>Best For</th><th>How It Works</th></tr>
+    <tr>
+      <td><strong>EBITDA</strong></td>
+      <td>Businesses being sold to a company, competitor, or investor who will hire management</td>
+      <td>Values the business operations. The owner's salary stays as a cost because a replacement manager will be needed.</td>
+    </tr>
+    <tr>
+      <td><strong>SDE</strong></td>
+      <td>Small businesses being sold to an owner-operator who will run the business themselves</td>
+      <td>Adds the owner's total compensation back to EBITDA. The buyer "pays themselves" from the SDE and the remainder services the purchase price.</td>
+    </tr>
+  </table>
+
+  <div class="example">
+    <div class="example-title">📝 Example: Choosing the right method</div>
+    <p>A plumbing business with 8 employees makes $200k EBITDA. The owner takes $150k salary. If sold to a competitor (who has their own managers), use <strong>EBITDA</strong> ($200k). If sold to a plumber who'll run it themselves, use <strong>SDE</strong> ($200k + $150k = $350k).</p>
+  </div>
+
+  <h3>Valuation Scope: Enterprise vs Equity</h3>
+  <ul>
+    <li><strong>Enterprise Value Only</strong> — just the value of the business operations (suitable for asset sales)</li>
+    <li><strong>Full Entity (Equity) Value</strong> — the enterprise value plus/minus balance sheet items, giving you the value of the shares (required for share sales)</li>
+  </ul>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: Enterprise Value vs Equity Value</summary>
+    <div class="detail-content">
+      <p><strong>Enterprise Value (EV)</strong> is the value of the business as a money-making machine. It answers: "How much is the earning capacity worth?"</p>
+      <p><strong>Equity Value</strong> answers: "How much are the shares worth?" It takes the EV and adjusts for everything else the company owns and owes:</p>
+      <p>Equity Value = Enterprise Value + Cash + Debtors + Stock − Creditors − Provisions − Tax Liabilities + Surplus Assets − Debt</p>
+      <p>Think of it this way: if you buy all the shares, you get everything — the earning capacity AND all the cash in the bank, the money owed by customers, the stock on the shelves, but also the bills to pay and the employee leave owing.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: Enterprise Value vs Equity Value Explained</a>
+        <a href="#" class="resource-link ae">📋 AE: Valuation Scoping for Client Engagements</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 2 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step2">
+  <h2><span class="step-num">2</span> Upload Financial Data</h2>
+  <p>Upload the business's financial statements. The AI will read the PDF and extract every line item into a structured format you can review and edit.</p>
+  
+  <h3>What to Upload</h3>
+  <ul>
+    <li><strong>Financial Statements (required)</strong> — the accountant's annual report, typically a single PDF containing the Profit &amp; Loss, Balance Sheet, Notes, and Depreciation Schedule. Upload reports for 2-4 financial years.</li>
+    <li><strong>General Ledger (optional)</strong> — if the bookkeeper can export the GL as Excel or CSV, upload it for more accurate normalisation analysis. The GL shows individual transactions within each expense category.</li>
+  </ul>
+
+  <div class="tip">
+    <div class="tip-title">💡 Best practice</div>
+    <p>Upload the <strong>statutory accounts</strong> prepared by the external accountant — these are the "source of truth" that banks, the ATO, and courts will accept. Management accounts or Xero/MYOB reports can differ due to year-end adjustments.</p>
+  </div>
+
+  <h3>After Uploading</h3>
+  <ol>
+    <li>Click <strong>"Parse with AI"</strong> and wait 30-60 seconds</li>
+    <li>The AI extracts every P&amp;L line item and balance sheet item, categorised by type</li>
+    <li>Review the data in the spreadsheet grid — correct any errors</li>
+    <li>Check that <strong>Depreciation</strong> is categorised as "Depreciation" (not "Operating Expenses")</li>
+    <li>Check that <strong>Interest</strong> is categorised as "Interest" (not "Operating Expenses")</li>
+    <li>Check that <strong>Tax</strong> is categorised as "Tax" if present</li>
+  </ol>
+
+  <div class="warning">
+    <div class="warning-title">⚠️ Common issue: Garbled PDF text</div>
+    <p>Some older PDFs use embedded fonts that can't be extracted as text. If you see garbled characters (e.g., ")LQDQFLDO") for one year but not others, that year's PDF has this issue. You'll need to enter that year's data manually using the "+ add" buttons, or ask the accountant for a newer version of the report.</p>
+  </div>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: Understanding P&amp;L categories</summary>
+    <div class="detail-content">
+      <p>Every P&amp;L line item is categorised into one of eight types:</p>
+      <table>
+        <tr><th>Category</th><th>What It Includes</th><th>Impact on EBITDA</th></tr>
+        <tr><td>Revenue</td><td>Sales income, service revenue</td><td>Included</td></tr>
+        <tr><td>Cost of Sales</td><td>Direct costs: materials, subcontractors, freight</td><td>Included (deducted)</td></tr>
+        <tr><td>Other Income</td><td>Interest income, grants, misc income</td><td>Included</td></tr>
+        <tr><td>Operating Expenses</td><td>Wages, rent, insurance, admin, marketing</td><td>Included (deducted)</td></tr>
+        <tr><td>Depreciation</td><td>Non-cash charge for asset wear</td><td><strong>Added back</strong></td></tr>
+        <tr><td>Amortisation</td><td>Non-cash charge for intangible assets</td><td><strong>Added back</strong></td></tr>
+        <tr><td>Interest</td><td>Interest expense on loans</td><td><strong>Added back</strong></td></tr>
+        <tr><td>Tax</td><td>Income tax expense</td><td><strong>Added back</strong></td></tr>
+      </table>
+      <p>Getting the categorisation right is critical — if depreciation is accidentally left in "Operating Expenses," your EBITDA will be too low.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: Reading Financial Statements</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 3 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step3">
+  <h2><span class="step-num">3</span> EBITDA Calculation</h2>
+  <p>This step shows the EBITDA build-up for each year. EBITDA = Earnings Before Interest, Tax, Depreciation and Amortisation.</p>
+  
+  <h3>What to Check</h3>
+  <ul>
+    <li>Does the <strong>Revenue</strong> match the financial statements?</li>
+    <li>Does the <strong>Net Profit</strong> match? If not, a line item may be miscategorised — go back to Step 2</li>
+    <li>Are the add-backs correct? Depreciation, amortisation, interest, and tax should all show as green numbers being added back</li>
+  </ul>
+
+  <div class="example">
+    <div class="example-title">📝 Example: EBITDA calculation</div>
+    <table>
+      <tr><td>Revenue</td><td class="amount">$10,000,000</td></tr>
+      <tr><td>Less: Cost of Sales</td><td class="amount">($3,600,000)</td></tr>
+      <tr><td><strong>Gross Profit</strong></td><td class="amount"><strong>$6,400,000</strong></td></tr>
+      <tr><td>Less: Operating Expenses</td><td class="amount">($5,800,000)</td></tr>
+      <tr><td>Less: Depreciation</td><td class="amount">($88,000)</td></tr>
+      <tr><td>Less: Interest</td><td class="amount">($15,000)</td></tr>
+      <tr><td>Less: Tax</td><td class="amount">($162,000)</td></tr>
+      <tr><td><strong>Net Profit</strong></td><td class="amount"><strong>$335,000</strong></td></tr>
+      <tr><td colspan="2" style="border-top: 2px solid #1F4E79; padding-top: 0.5rem;"><strong>EBITDA Build-up:</strong></td></tr>
+      <tr><td>Net Profit</td><td class="amount">$335,000</td></tr>
+      <tr><td>Add: Depreciation</td><td class="amount" style="color: green;">$88,000</td></tr>
+      <tr><td>Add: Interest</td><td class="amount" style="color: green;">$15,000</td></tr>
+      <tr><td>Add: Tax</td><td class="amount" style="color: green;">$162,000</td></tr>
+      <tr style="background: #1F4E79; color: white;"><td><strong>EBITDA</strong></td><td class="amount"><strong>$600,000</strong></td></tr>
+    </table>
+  </div>
+
+  <p>Click <strong>"Confirm & Continue"</strong> once you're satisfied the numbers are correct.</p>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: Why use EBITDA instead of Net Profit?</summary>
+    <div class="detail-content">
+      <p>Net profit is affected by how the business is financed (interest), the tax structure, and accounting policies (depreciation methods). These factors vary between businesses and between buyers. EBITDA strips them out to show the <em>operating earning power</em> of the business — what it generates before financing and accounting decisions.</p>
+      <p>This makes EBITDA the best basis for comparing businesses and for applying an earnings multiple.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: EBITDA — The Key Metric for Business Value</a>
+        <a href="#" class="resource-link ae">📋 AE: Selecting Appropriate Earnings Measures</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 4 — NORMALISATION (DETAILED) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step4">
+  <h2><span class="step-num">4</span> Normalisation Adjustments</h2>
+  <p>This is the <strong>most important step</strong> in the valuation. Normalisation adjusts the historical EBITDA to show what a <em>new owner</em> could reasonably expect to earn. Every dollar of adjustment, multiplied by the earnings multiple, directly changes the business value.</p>
+
+  <h3>Why Normalise?</h3>
+  <p>Business owners routinely run personal expenses through the business to reduce tax. They may pay themselves above or below market rate. There may be one-off events that inflated or depressed profits. A buyer needs to see the <em>true, sustainable</em> earning power — not the tax-minimised version.</p>
+
+  <h3>How to Use This Step</h3>
+  <ol>
+    <li>Click <strong>"🤖 AI Analysis"</strong> — the AI scans every operating expense and flags potential adjustments with reasoning</li>
+    <li>Review each flagged item. For each one, choose:
+      <ul>
+        <li><strong>Accept</strong> — you agree with the AI's recommendation</li>
+        <li><strong>Reject</strong> — you disagree; the item is kept but recorded as "considered and rejected" (this is good practice)</li>
+        <li><strong>Modify</strong> — you agree it's an adjustment but want to change the amount</li>
+      </ul>
+    </li>
+    <li>Add any items the AI missed using the manual buttons</li>
+    <li>Review the <strong>Normalised EBITDA</strong> summary at the bottom</li>
+  </ol>
+
+  <h3>The Five Categories of Normalisation</h3>
+  
+  <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0;">
+    <h4 style="color: #166534; margin-bottom: 0.5rem;">1. Owner Compensation</h4>
+    <p>The owner's salary, superannuation, and benefits may not reflect market rates. If the owner takes $250,000 but a replacement manager would cost $150,000, we add back $100,000. If the owner takes only $80,000, we <em>deduct</em> $70,000 to bring it to market rate.</p>
+    <p><strong>What to look for:</strong> Wages line items with owner's name, excessive superannuation contributions, personal insurance policies paid by the business.</p>
+  </div>
+
+  <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0;">
+    <h4 style="color: #1e40af; margin-bottom: 0.5rem;">2. Related Party Transactions</h4>
+    <p>Transactions with entities related to the owner — rent paid to the owner's property trust, management fees to the owner's holding company, wages to family members who aren't essential to operations.</p>
+    <p><strong>What to look for:</strong> Management fees, rent to associated entities, wages to family members (check if they're doing real work at market rates).</p>
+  </div>
+
+  <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0;">
+    <h4 style="color: #854d0e; margin-bottom: 0.5rem;">3. Personal / Discretionary Expenses</h4>
+    <p>Expenses that benefit the owner personally rather than the business. These cease when the business is sold.</p>
+    <p><strong>What to look for:</strong> Travel &amp; accommodation (personal holidays coded as business trips), meals &amp; entertainment (personal dining), motor vehicle expenses (personal use component), donations &amp; sponsorships (owner's pet causes), club memberships, personal mobile phones.</p>
+  </div>
+
+  <div style="background: #faf5ff; border: 1px solid #d8b4fe; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0;">
+    <h4 style="color: #6b21a8; margin-bottom: 0.5rem;">4. Non-Recurring Items</h4>
+    <p>One-off events that won't happen again. These distort the picture of normal ongoing profitability.</p>
+    <p><strong>What to look for:</strong> One-off legal fees (lawsuit settlement), restructuring costs, insurance claims received, government grants (JobKeeper, COVID subsidies), large bad debt write-offs, profit/loss on asset sales.</p>
+  </div>
+
+  <div style="background: #fdf2f8; border: 1px solid #f9a8d4; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0;">
+    <h4 style="color: #9d174d; margin-bottom: 0.5rem;">5. Non-Operating Items</h4>
+    <p>Income or expenses not related to the core business operations. These are valued separately (usually as surplus assets on the balance sheet).</p>
+    <p><strong>What to look for:</strong> Interest income (comes from cash holdings, valued as surplus asset), rental income from non-core property, investment income, foreign exchange gains/losses.</p>
+  </div>
+
+  <div class="example">
+    <div class="example-title">📝 Worked Example: Normalisation</div>
+    <p>A construction business has EBITDA of $600,000. Analysis reveals:</p>
+    <table>
+      <tr><th>Item</th><th>Category</th><th>Treatment</th><th class="amount">Amount</th></tr>
+      <tr><td>Owner salary $300k vs market $180k</td><td>Owner Comp</td><td>Add back excess</td><td class="amount" style="color:green;">+$120,000</td></tr>
+      <tr><td>Management fee to owner's trust</td><td>Related Party</td><td>Remove (no real service)</td><td class="amount" style="color:green;">+$80,000</td></tr>
+      <tr><td>Owner's personal travel</td><td>Personal</td><td>Add back</td><td class="amount" style="color:green;">+$25,000</td></tr>
+      <tr><td>Meals &amp; entertainment</td><td>Personal</td><td>Add back 50%</td><td class="amount" style="color:green;">+$7,000</td></tr>
+      <tr><td>COVID government grant</td><td>Non-Recurring</td><td>Remove (won't recur)</td><td class="amount" style="color:red;">−$50,000</td></tr>
+      <tr><td>Interest income on cash</td><td>Non-Operating</td><td>Remove (valued in BS)</td><td class="amount" style="color:red;">−$19,000</td></tr>
+      <tr style="background: #1F4E79; color: white;"><td colspan="3"><strong>Normalised EBITDA</strong></td><td class="amount"><strong>$763,000</strong></td></tr>
+    </table>
+    <p style="margin-top: 0.5rem;">At a 3x multiple, these adjustments changed the enterprise value from $1,800,000 to $2,289,000 — a difference of <strong>$489,000</strong>.</p>
+  </div>
+
+  <div class="warning">
+    <div class="warning-title">⚠️ Be conservative with add-backs</div>
+    <p>Aggressive normalisation adjustments erode buyer confidence. Every add-back will be scrutinised during due diligence. If you can't clearly justify an adjustment, don't make it. The AI recommends "Leave as-is" for items that are borderline — trust that judgment.</p>
+  </div>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: Normalisation best practice</summary>
+    <div class="detail-content">
+      <p><strong>Documentation is everything.</strong> For every adjustment, ask: "Could I explain this to a sceptical buyer with evidence?" If yes, include it. If no, leave it out.</p>
+      <p><strong>The hidden deduction:</strong> If the owner takes $50,000 salary but the market rate for their role is $150,000, the normalised EBITDA <em>decreases</em> by $100,000. Many sellers forget this works both ways. At a 3x multiple, this represents $300,000 off the business value.</p>
+      <p><strong>Consistency across years:</strong> If you add back travel in 2024, add it back in 2023 and 2022 too. Inconsistent adjustments suggest cherry-picking.</p>
+      <p><strong>Items the AI commonly flags:</strong></p>
+      <ul>
+        <li>Management fees to associated entities (very common in family groups)</li>
+        <li>Motor vehicle expenses (especially if the owner drives a prestige vehicle)</li>
+        <li>Travel that seems disproportionate to the business's needs</li>
+        <li>Donations and sponsorships</li>
+        <li>Insurance premiums that include personal policies</li>
+        <li>Labour hire or subcontractor costs to related parties</li>
+      </ul>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: How Normalisation Adjustments Affect Business Value</a>
+        <a href="#" class="resource-link ae">📋 AE: Defensible Normalisation — A Practitioner's Checklist</a>
+        <a href="#" class="resource-link ae">📋 AE: Owner Compensation Benchmarking</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 5 — WEIGHTING (DETAILED) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step5">
+  <h2><span class="step-num">5</span> Weighting &amp; Future Maintainable Earnings</h2>
+  <p>Now that you have the normalised EBITDA for each year, you need to derive a single number — the <strong>Future Maintainable Earnings (FME)</strong>. This is the amount you multiply by the EBITDA multiple to get the enterprise value.</p>
+
+  <h3>Why Not Just Use the Latest Year?</h3>
+  <p>Because any single year might be unusually good or bad. By weighting across multiple years, you smooth out anomalies and get a more reliable picture of what the business can sustainably earn going forward.</p>
+
+  <h3>How Weighting Works</h3>
+  <p>Each year gets a percentage weight (must sum to 100%). The FME is the weighted average:</p>
+  <p><code>FME = (Year 1 EBITDA × Weight%) + (Year 2 EBITDA × Weight%) + (Year 3 EBITDA × Weight%)</code></p>
+  
+  <h3>General Principles</h3>
+  <ul>
+    <li><strong>More recent years get higher weight</strong> — they better reflect current performance and market conditions</li>
+    <li><strong>Default weighting</strong> is proportional to recency (e.g., 50% / 33% / 17% for 3 years)</li>
+    <li><strong>Unusual years get less weight</strong> — but you must explain why in the context box</li>
+    <li><strong>The AI will recommend weights</strong> based on the pattern it sees, but you can override</li>
+  </ul>
+
+  <div class="example">
+    <div class="example-title">📝 Worked Example: Weighting with an unusual year</div>
+    <p>A business has normalised EBITDA of:</p>
+    <table>
+      <tr><th>Year</th><th class="amount">EBITDA</th><th>Context</th></tr>
+      <tr><td>FY2024</td><td class="amount">$700,000</td><td>Normal year, new contract won</td></tr>
+      <tr><td>FY2023</td><td class="amount">$300,000</td><td>Lost major customer mid-year (since replaced)</td></tr>
+      <tr><td>FY2022</td><td class="amount">$650,000</td><td>Normal year</td></tr>
+    </table>
+    
+    <p style="margin-top: 1rem;"><strong>Without context</strong>, a simple average gives FME of $550,000. But FY2023 was an anomaly — the lost customer has been replaced. The AI might recommend:</p>
+    <table>
+      <tr><th>Year</th><th class="amount">EBITDA</th><th>Weight</th><th class="amount">Contribution</th></tr>
+      <tr><td>FY2024</td><td class="amount">$700,000</td><td>60%</td><td class="amount">$420,000</td></tr>
+      <tr><td>FY2023</td><td class="amount">$300,000</td><td>10%</td><td class="amount">$30,000</td></tr>
+      <tr><td>FY2022</td><td class="amount">$650,000</td><td>30%</td><td class="amount">$195,000</td></tr>
+      <tr style="background: #1F4E79; color: white;"><td colspan="2"><strong>FME</strong></td><td><strong>100%</strong></td><td class="amount"><strong>$645,000</strong></td></tr>
+    </table>
+    <p style="margin-top: 0.5rem;">The user's explanation ("Lost major customer in FY23 who has since been replaced with three smaller customers") is included in the valuation report, providing the reasoning trail a reviewer needs.</p>
+  </div>
+
+  <h3>Using the AI Weighting Analysis</h3>
+  <ol>
+    <li>Enter any context about unusual years in the text box</li>
+    <li>Click <strong>"🤖 AI Weighting Analysis"</strong></li>
+    <li>The AI considers the EBITDA pattern AND your context, then recommends weights with reasoning</li>
+    <li>Review and adjust using the sliders or number inputs</li>
+    <li>Weights must sum to 100% (shown in green when correct, red when not)</li>
+    <li>The FME is displayed in the large navy box at the bottom</li>
+  </ol>
+
+  <div class="tip">
+    <div class="tip-title">💡 Pro tip: Context matters enormously</div>
+    <p>A year with low EBITDA could mean the business is declining (bad sign — increase its weight) OR that something unusual happened (reduce its weight). The AI can't tell the difference without your context. Always explain anomalies — it directly affects the FME and therefore the final value.</p>
+  </div>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: Common weighting scenarios</summary>
+    <div class="detail-content">
+      <p><strong>Steadily growing business:</strong> Weight more heavily to recent years (e.g., 55/30/15). The recent performance is more representative of future earnings.</p>
+      <p><strong>Business recovering from COVID:</strong> If FY2021 was badly affected, reduce its weight significantly (e.g., 60/30/10) and explain the COVID impact in the context box.</p>
+      <p><strong>Cyclical business:</strong> If the business follows economic cycles, include a full cycle in the weighting (e.g., 3-4 years) with more even weights to average out the peaks and troughs.</p>
+      <p><strong>Business with one exceptional year:</strong> If one year had a non-recurring windfall (e.g., a one-off large contract), reduce its weight. But first check — should this have been handled in normalisation instead?</p>
+      <p><strong>Declining business:</strong> If EBITDA is trending downward and there's no good reason to expect a reversal, weight heavily to the most recent year. This is a difficult conversation with the seller but produces an honest valuation.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: How Earnings Weighting Affects Business Value</a>
+        <a href="#" class="resource-link ae">📋 AE: Deriving Future Maintainable Earnings</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 6 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step6">
+  <h2><span class="step-num">6</span> Risk Analysis &amp; EBITDA Multiple</h2>
+  <p>The EBITDA multiple reflects how risky the business is. A safer, more predictable business commands a higher multiple (higher price). A riskier business gets a lower multiple.</p>
+
+  <h3>The Six Risk Factors</h3>
+  <p>Each factor is scored from 0 (very low risk) to 10 (very high risk), with both an optimistic (low) and conservative (high) score to create a range.</p>
+
+  <table>
+    <tr><th>Factor</th><th>What to Consider</th></tr>
+    <tr><td><strong>Revenue Growth</strong></td><td>Is revenue growing consistently? Flat? Declining? A growing business with sticky revenue is low risk. A business dependent on winning new work each year is higher risk.</td></tr>
+    <tr><td><strong>Financial Risk</strong></td><td>How much debt does the business carry? Is liquidity strong? A debt-free business with cash reserves is very low risk.</td></tr>
+    <tr><td><strong>Key Person</strong></td><td>Would the business survive if the owner left? If it relies heavily on one person's relationships or skills, that's high risk.</td></tr>
+    <tr><td><strong>Customer Concentration</strong></td><td>Does one customer account for more than 20% of revenue? If one customer leaving would cripple the business, that's high risk.</td></tr>
+    <tr><td><strong>Profitability</strong></td><td>Are margins consistent and healthy? A 20%+ EBITDA margin is strong. Volatile or thin margins indicate higher risk.</td></tr>
+    <tr><td><strong>Competition</strong></td><td>How competitive is the market? Are there barriers to entry? A regulated monopoly is very low risk. A crowded market with no switching costs is high risk.</td></tr>
+  </table>
+
+  <h3>How Scores Map to Multiples</h3>
+  <table>
+    <tr><th>Composite Score</th><th>Multiple</th><th>Description</th></tr>
+    <tr><td>2-3 out of 10</td><td>~5x</td><td>Very safe, predictable business</td></tr>
+    <tr><td>5 out of 10</td><td>~3x</td><td>Average risk</td></tr>
+    <tr><td>8-9 out of 10</td><td>~1x</td><td>Very high risk</td></tr>
+  </table>
+  <p>For Australian SMEs, typical multiples range from <strong>1x to 6x EBITDA</strong>. Most small businesses sell at 2-4x.</p>
+
+  <div class="tip">
+    <div class="tip-title">💡 Use the AI Risk Scoring</div>
+    <p>Click <strong>"🤖 AI Risk Scoring"</strong> to get AI-suggested scores with reasoning. The AI also generates an industry analysis section for the report. You can adjust any scores you disagree with.</p>
+  </div>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: EBITDA multiples by industry</summary>
+    <div class="detail-content">
+      <p>These are typical ranges for Australian SMEs (enterprise value $500k–$10M):</p>
+      <table>
+        <tr><th>Industry</th><th>Typical Multiple</th></tr>
+        <tr><td>Professional Services (accounting, legal)</td><td>2-4x</td></tr>
+        <tr><td>Building &amp; Construction</td><td>2-4x</td></tr>
+        <tr><td>Manufacturing</td><td>3-5x</td></tr>
+        <tr><td>Retail</td><td>2-3x</td></tr>
+        <tr><td>IT &amp; Tech Services</td><td>4-7x</td></tr>
+        <tr><td>Healthcare / Medical</td><td>4-6x</td></tr>
+        <tr><td>Food &amp; Beverage</td><td>2-4x</td></tr>
+        <tr><td>Transport &amp; Logistics</td><td>3-5x</td></tr>
+      </table>
+      <p>These are averages — individual businesses will fall above or below depending on their specific risk profile.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: What Determines Your Business's EBITDA Multiple?</a>
+        <a href="#" class="resource-link ae">📋 AE: Risk Assessment Framework for Valuations</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 7 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step7">
+  <h2><span class="step-num">7</span> Balance Sheet Review</h2>
+  <p>This step only appears if you selected "Full Entity (Equity) Value" in Step 1. You're now classifying every balance sheet item to determine what adds to or subtracts from the enterprise value.</p>
+
+  <h3>The Five Classifications</h3>
+  <table>
+    <tr><th>Classification</th><th>What Goes Here</th><th>Effect on Value</th></tr>
+    <tr><td>🔧 <strong>In Enterprise Value</strong></td><td>Operating fixed assets: plant, equipment, vehicles, fit-out</td><td>No separate effect — already priced into the multiple</td></tr>
+    <tr><td>➕ <strong>Transfers (Asset)</strong></td><td>Cash, trade debtors, stock, prepayments, tax assets</td><td><strong>Added</strong> to enterprise value</td></tr>
+    <tr><td>➖ <strong>Transfers (Liability)</strong></td><td>Trade creditors, employee provisions, tax liabilities, GST</td><td><strong>Deducted</strong> from enterprise value</td></tr>
+    <tr><td>⭐ <strong>Surplus</strong></td><td>Excess cash, investments, director loans, non-operating property</td><td><strong>Added</strong> to enterprise value</td></tr>
+    <tr><td>🏦 <strong>Debt</strong></td><td>Bank loans, hire purchase, finance leases</td><td><strong>Deducted</strong> from enterprise value</td></tr>
+  </table>
+
+  <div class="warning">
+    <div class="warning-title">⚠️ Key principle: Don't double-count operating fixed assets</div>
+    <p>Plant, equipment, and vehicles used in operations are already valued WITHIN the enterprise value. The EBITDA multiple prices them in — the buyer can't earn the EBITDA without them. Classify these as "🔧 In Enterprise Value" and they will NOT be added or subtracted.</p>
+  </div>
+
+  <h3>Adjusting Book Values</h3>
+  <p>The "Adjusted Value" column lets you override book values with estimated market values:</p>
+  <ul>
+    <li><strong>Trade debtors:</strong> Reduce for any doubtful debts not already provided for</li>
+    <li><strong>Stock:</strong> Reduce for any obsolete or slow-moving stock</li>
+    <li><strong>Plant &amp; equipment:</strong> If book value differs materially from market/replacement value</li>
+    <li><strong>Employee provisions:</strong> Ensure they're adequate for actual entitlements</li>
+  </ul>
+
+  <div class="example">
+    <div class="example-title">📝 Example: Balance sheet classification for a manufacturing business</div>
+    <table>
+      <tr><th>Item</th><th>Book Value</th><th>Classification</th><th>Effect</th></tr>
+      <tr><td>Cash at bank</td><td class="amount">$1,950,000</td><td>➕ Transfer (Asset)</td><td style="color:green;">+$1,950,000</td></tr>
+      <tr><td>Trade debtors</td><td class="amount">$1,045,000</td><td>➕ Transfer (Asset)</td><td style="color:green;">+$1,045,000</td></tr>
+      <tr><td>Stock &amp; WIP</td><td class="amount">$452,000</td><td>➕ Transfer (Asset)</td><td style="color:green;">+$452,000</td></tr>
+      <tr><td>Tax asset</td><td class="amount">$141,000</td><td>➕ Transfer (Asset)</td><td style="color:green;">+$141,000</td></tr>
+      <tr><td>Plant &amp; equipment</td><td class="amount">$420,000</td><td>🔧 In EV</td><td>—</td></tr>
+      <tr><td>Goodwill</td><td class="amount">$2,151,000</td><td>📋 Replaced</td><td>—</td></tr>
+      <tr><td>Trade creditors</td><td class="amount">$756,000</td><td>➖ Transfer (Liability)</td><td style="color:red;">−$756,000</td></tr>
+      <tr><td>Employee provisions</td><td class="amount">$337,000</td><td>➖ Transfer (Liability)</td><td style="color:red;">−$337,000</td></tr>
+      <tr><td>Tax liabilities</td><td class="amount">$85,000</td><td>➖ Transfer (Liability)</td><td style="color:red;">−$85,000</td></tr>
+      <tr style="background:#1F4E79; color:white;"><td colspan="3"><strong>Net BS Adjustment</strong></td><td class="amount"><strong>+$2,410,000</strong></td></tr>
+    </table>
+  </div>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: Why transferring items matter</summary>
+    <div class="detail-content">
+      <p>When you buy all the shares of a company, you get <em>everything</em> the company owns and owes. The enterprise value only prices the earning capacity. But the buyer also receives:</p>
+      <ul>
+        <li>The <strong>cash</strong> sitting in the bank accounts</li>
+        <li>The <strong>money owed by customers</strong> (debtors) — real money that will be collected</li>
+        <li>The <strong>stock</strong> on the shelves — that has real value</li>
+      </ul>
+      <p>But the buyer also inherits:</p>
+      <ul>
+        <li>The <strong>bills to pay</strong> (creditors)</li>
+        <li>The <strong>employee leave owing</strong> (annual leave, long service leave)</li>
+        <li>Any <strong>tax</strong> the company owes</li>
+      </ul>
+      <p>The net of all these transferring items can be a very significant number — often $1M+ for a $10M revenue business. Getting this right is critical to an accurate equity value.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: What Happens to the Balance Sheet When You Buy a Business?</a>
+        <a href="#" class="resource-link ae">📋 AE: Balance Sheet Classification for Valuation</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 8 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step8">
+  <h2><span class="step-num">8</span> Valuation Summary</h2>
+  <p>This step shows the complete valuation calculation. No new inputs are needed — review the numbers and check they make sense.</p>
+
+  <h3>What to Check</h3>
+  <ul>
+    <li>Does the <strong>enterprise value range</strong> feel right for a business of this size and type?</li>
+    <li>Is the <strong>balance sheet adjustment</strong> reasonable? (A very large positive or negative number may indicate a classification error in Step 7)</li>
+    <li>Does the <strong>implied revenue multiple</strong> make sense for the industry?</li>
+    <li>Is the <strong>equipment floor value</strong> warning triggered? If so, consider whether the going concern assumption is appropriate</li>
+    <li>Check the <strong>sensitivity matrix</strong> — does the range of outcomes feel reasonable?</li>
+  </ul>
+
+  <h3>Discounts</h3>
+  <p>Consider whether discounts should apply:</p>
+  <ul>
+    <li><strong>Minority discount:</strong> Only if valuing less than 100% of the shares</li>
+    <li><strong>Marketability discount:</strong> If the shares are in a private company with no ready market. Not always appropriate — depends on the purpose of the valuation.</li>
+  </ul>
+
+  <details class="detail-toggle">
+    <summary>📚 Learn more: When to apply discounts</summary>
+    <div class="detail-content">
+      <p><strong>Minority discount (15-30%):</strong> A 20% shareholder has much less control than a 100% owner. They can't set dividends, hire/fire staff, or sell the business. Their shares are worth proportionally less. Apply only when valuing a minority interest.</p>
+      <p><strong>Marketability discount (10-25%):</strong> Private company shares can't be sold on a stock exchange. There's no ready market. This reduces their value compared to equivalent listed shares. Common in family law and estate planning valuations.</p>
+      <p><strong>When NOT to discount:</strong> If the purpose is a full sale to a single buyer, no discounts are needed — the buyer is getting 100% control and will create their own liquidity by owning the whole business.</p>
+      <div class="resource-links">
+        <a href="#" class="resource-link ml">📄 ML: Valuation Discounts — When and How Much?</a>
+        <a href="#" class="resource-link ae">📋 AE: Applying Discounts Under APES 225</a>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 9 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="step9">
+  <h2><span class="step-num">9</span> Report</h2>
+  <p>Step 9 presents a detailed calculation summary with all workings. This is the output an accountant needs to verify every number before advising their client.</p>
+  
+  <h3>The Report Contains:</h3>
+  <ol>
+    <li><strong>Financial Performance Summary</strong> — Revenue, GP, EBITDA, Net Profit per year with margins</li>
+    <li><strong>Normalisation Schedule</strong> — Every adjustment with category, treatment, amounts, and accept/reject status</li>
+    <li><strong>FME Derivation</strong> — Weighted average table with AI reasoning</li>
+    <li><strong>Risk Analysis</strong> — All 6 risk factors with scores and reasoning, composite score, multiple derivation</li>
+    <li><strong>Balance Sheet &amp; Equity Build-up</strong> — Every transferring asset and liability listed individually</li>
+    <li><strong>Cross-Checks</strong> — Implied revenue multiple, equipment floor value</li>
+    <li><strong>Sensitivity Analysis</strong> — 3×3 matrix showing value under different scenarios</li>
+  </ol>
+
+  <div class="tip">
+    <div class="tip-title">💡 Coming soon: DOCX Report Download</div>
+    <p>A downloadable Word document containing all calculations, narrative sections, and professional formatting will be available in the next update. For now, the on-screen report in Step 9 contains all the workings you need.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- GLOSSARY -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="glossary">
+  <h2>Glossary of Terms</h2>
+  <table>
+    <tr><th style="width:25%;">Term</th><th>Definition</th></tr>
+    <tr><td><strong>APES 225</strong></td><td>The Australian professional standard for Valuation Services, issued by the APESB</td></tr>
+    <tr><td><strong>CFME</strong></td><td>Capitalisation of Future Maintainable Earnings — the valuation method used by this tool</td></tr>
+    <tr><td><strong>EBITDA</strong></td><td>Earnings Before Interest, Tax, Depreciation and Amortisation — the key measure of operating profitability</td></tr>
+    <tr><td><strong>SDE</strong></td><td>Seller's Discretionary Earnings = EBITDA + owner's total compensation. Used for owner-operated businesses.</td></tr>
+    <tr><td><strong>FME</strong></td><td>Future Maintainable Earnings — the weighted average normalised EBITDA used as the earnings base</td></tr>
+    <tr><td><strong>Enterprise Value</strong></td><td>The value of the business operations (FME × Multiple), before balance sheet adjustments</td></tr>
+    <tr><td><strong>Equity Value</strong></td><td>Enterprise Value + transferring assets − transferring liabilities + surplus assets − debt = value of the shares</td></tr>
+    <tr><td><strong>Normalisation</strong></td><td>Adjusting historical earnings to remove personal, discretionary, non-recurring, and non-operating items</td></tr>
+    <tr><td><strong>Multiple</strong></td><td>The factor applied to FME to derive enterprise value (e.g., 3x EBITDA)</td></tr>
+    <tr><td><strong>Surplus Assets</strong></td><td>Assets not needed for operations (investments, excess cash, director loans)</td></tr>
+    <tr><td><strong>Transferring Assets</strong></td><td>Current assets that transfer to the buyer on a share sale (cash, debtors, stock)</td></tr>
+    <tr><td><strong>Transferring Liabilities</strong></td><td>Current liabilities inherited by the buyer (creditors, provisions, tax payable)</td></tr>
+    <tr><td><strong>Equipment Floor</strong></td><td>Total realisable value of operating fixed assets — a cross-check against enterprise value</td></tr>
+    <tr><td><strong>NRV</strong></td><td>Net Realisable Value — what stock could actually be sold for</td></tr>
+  </table>
+</div>
+
+</div><!-- end content -->
+
+<div class="footer">
+  <p>BAKR Business Valuation Tool User Guide — Consultants for Accountants Pty Ltd</p>
+  <p>This guide is provided for educational purposes. Professional judgement should be applied to all valuation decisions.</p>
+</div>
+
+<script>
+// Highlight active nav item on scroll
+const sections = document.querySelectorAll('.section[id]');
+const navLinks = document.querySelectorAll('.step-nav a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 160) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.classList.remove('active');
+    if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>
