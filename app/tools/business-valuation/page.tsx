@@ -134,12 +134,12 @@ const NORM_TREATMENTS: Record<string, string> = {
 }
 
 const DEFAULT_RISK_FACTORS: RiskFactor[] = [
-  { id: 'revenue', name: 'Revenue Growth & Maintainability', description: 'How consistent is the revenue, and is it likely to continue? A business with long-term contracts and recurring revenue scores low; one that relies on winning new work each month scores high.', guidance: '← Slide left for lower risk (strong growth, contracted revenue) — Slide right for higher risk (declining, volatile) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'financial', name: 'Financial Risk', description: 'How healthy is the balance sheet? Consider debt levels, cash reserves, and whether the business can comfortably meet its obligations. A debt-free business with cash reserves is very low risk.', guidance: '← Slide left for lower risk (no debt, strong cash) — Slide right for higher risk (heavily leveraged, tight cash) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'keyman', name: 'Key Person Risk', description: 'Would the business survive and maintain its revenue if the owner or key person left? Consider whether relationships, technical skills, or licences are held by one individual. Systems and documented processes reduce this risk.', guidance: '← Slide left for lower risk (strong team, systems in place) — Slide right for higher risk (owner IS the business) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'customer', name: 'Customer Concentration Risk', description: 'Is revenue spread across many customers, or does one or two customers dominate? Losing a customer that represents 30%+ of revenue could be catastrophic. A broad customer base with no single customer over 10% is low risk.', guidance: '← Slide left for lower risk (many customers, none dominant) — Slide right for higher risk (one customer >30%) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'profitability', name: 'Profitability Risk', description: 'Are margins consistent and healthy, or thin and volatile? A business with a stable 20%+ EBITDA margin year after year is predictable. One with margins that swing from 15% to 2% is risky even if the average is acceptable.', guidance: '← Slide left for lower risk (high, stable margins) — Slide right for higher risk (thin, volatile margins) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
-  { id: 'competitive', name: 'Competitive / Industry Risk', description: 'How competitive is the market and how strong is the business\'s position in it? Consider barriers to entry, regulatory protection, brand strength, and whether the industry is growing or contracting. A niche market leader with barriers to entry scores low.', guidance: '← Slide left for lower risk (dominant, protected position) — Slide right for higher risk (crowded market, no moat) →', weight: 16.7, scoreLow: 5, scoreHigh: 5, aiReasoning: '' },
+  { id: 'revenue', name: 'Revenue Growth & Maintainability', description: 'How consistent is the revenue, and is it likely to continue? A business with long-term contracts and recurring revenue scores low; one that relies on winning new work each month scores high.', guidance: '← Slide left for lower risk (strong growth, contracted revenue) — Slide right for higher risk (declining, volatile) →', weight: 16.7, scoreLow: 4, scoreHigh: 5, aiReasoning: '' },
+  { id: 'financial', name: 'Financial Risk', description: 'How healthy is the balance sheet? Consider debt levels, cash reserves, and whether the business can comfortably meet its obligations. A debt-free business with cash reserves is very low risk.', guidance: '← Slide left for lower risk (no debt, strong cash) — Slide right for higher risk (heavily leveraged, tight cash) →', weight: 16.7, scoreLow: 4, scoreHigh: 5, aiReasoning: '' },
+  { id: 'keyman', name: 'Key Person Risk', description: 'Would the business survive and maintain its revenue if the owner or key person left? Consider whether relationships, technical skills, or licences are held by one individual. Systems and documented processes reduce this risk.', guidance: '← Slide left for lower risk (strong team, systems in place) — Slide right for higher risk (owner IS the business) →', weight: 16.7, scoreLow: 4, scoreHigh: 5, aiReasoning: '' },
+  { id: 'customer', name: 'Customer Concentration Risk', description: 'Is revenue spread across many customers, or does one or two customers dominate? Losing a customer that represents 30%+ of revenue could be catastrophic. A broad customer base with no single customer over 10% is low risk.', guidance: '← Slide left for lower risk (many customers, none dominant) — Slide right for higher risk (one customer >30%) →', weight: 16.7, scoreLow: 4, scoreHigh: 5, aiReasoning: '' },
+  { id: 'profitability', name: 'Profitability Risk', description: 'Are margins consistent and healthy, or thin and volatile? A business with a stable 20%+ EBITDA margin year after year is predictable. One with margins that swing from 15% to 2% is risky even if the average is acceptable.', guidance: '← Slide left for lower risk (high, stable margins) — Slide right for higher risk (thin, volatile margins) →', weight: 16.7, scoreLow: 4, scoreHigh: 5, aiReasoning: '' },
+  { id: 'competitive', name: 'Competitive / Industry Risk', description: 'How competitive is the market and how strong is the business\'s position in it? Consider barriers to entry, regulatory protection, brand strength, and whether the industry is growing or contracting. A niche market leader with barriers to entry scores low.', guidance: '← Slide left for lower risk (dominant, protected position) — Slide right for higher risk (crowded market, no moat) →', weight: 16.7, scoreLow: 4, scoreHigh: 5, aiReasoning: '' },
 ]
 
 // ─── INITIAL STATE ──────────────────────────────────────────────────────────
@@ -279,6 +279,9 @@ export default function BusinessValuationTool() {
   // Step 7 state
   const [riskFactors, setRiskFactors] = useState<RiskFactor[]>(DEFAULT_RISK_FACTORS)
   const [industryAnalysis, setIndustryAnalysis] = useState('')
+
+  // Forecast years
+  const [forecastYears, setForecastYears] = useState<{year: string; ebitda: number; explanation: string}[]>([])
   // comparables state reserved for Phase 3
 
   // Step 8 state
@@ -322,8 +325,18 @@ export default function BusinessValuationTool() {
       }
       r[yr] = e
     }
+    // Include forecast years
+    for (const fy of forecastYears) {
+      r[fy.year] = fy.ebitda
+    }
     return r
-  }, [ebitdaByYear, normItems, years])
+  }, [ebitdaByYear, normItems, years, forecastYears])
+
+  // All years available for weighting (historical + forecast)
+  const allYearsForWeighting = useMemo(() => {
+    const fy = forecastYears.map(f => f.year)
+    return [...years, ...fy.filter(y => !years.includes(y))]
+  }, [years, forecastYears])
 
   // FME calculation
   const fme = useMemo(() => {
@@ -453,7 +466,7 @@ export default function BusinessValuationTool() {
             const pdfText = await extractPdfText(file.data)
             // Check if extracted text is mostly garbled (encoded fonts)
             const readableChars = pdfText.replace(/[^a-zA-Z0-9\s.,;:$%()-]/g, '')
-            if (readableChars.length < pdfText.length * 0.3) {
+            if (readableChars.length < pdfText.length * 0.1) {
               failedFiles.push(file.name)
               allText += `\n\n=== FILE: ${file.name} (text unreadable — encoded fonts) ===`
             } else {
@@ -480,7 +493,7 @@ export default function BusinessValuationTool() {
       return
     }
 
-    setProcessingMsg('Text extracted. Sending to AI for analysis — this may take 30-60 seconds...')
+    setProcessingMsg('Analysing financial data — this may take 30-60 seconds...')
     console.log('Extracted text length:', allText.length)
     console.log('First 1000 chars:', allText.substring(0, 1000))
 
@@ -512,8 +525,10 @@ CRITICAL RULES:
 - For the balance sheet: current_asset, fixed_asset, non_current_asset, current_liability, non_current_liability, equity
 - Liability amounts should be POSITIVE (they will be treated as liabilities by the system)
 - IMPORTANT: For each balance sheet item, if the Notes to the Financial Statements provide a breakdown (e.g. Note 4 Cash shows individual bank accounts, Note 5 shows Stock and WIP, Note 6 shows PP&E categories, Note 9 shows provision types), include these as "children" array with name and most recent year amount. This lets the user see what is inside each line.
-- Include ALL years shown in the financial statements
-- Years should be ordered most recent first in the years array`
+- Include ALL years shown in the financial statements — if the P&L has 2023 and 2022 comparatives, include BOTH years
+- If part-year or year-to-date management accounts are included, extract them as a separate year and add "isPartYear": true and "months": N (the number of months covered) to the yearInfo for that year
+- Years should be ordered most recent first in the years array
+- Return "yearInfo" as an array of objects: [{"year":"2024","isPartYear":false,"months":12}, {"year":"2023","isPartYear":false,"months":12}]`
 
     try {
       const res = await fetch(PROXY, {
@@ -568,7 +583,9 @@ CRITICAL RULES:
             else cls = 'transfer_asset'
             return { ...i, id: genId(), adjustedValue: 0, classification: cls, userNotes: '', children: i.children || [], expanded: false }
           }))
-      if (p.years) {
+      if (p.yearInfo && Array.isArray(p.yearInfo)) {
+        setFyConfigs(p.yearInfo.map((yi: any) => ({ year: yi.year, label: yi.isPartYear ? `FY${yi.year} (${yi.months}m)` : `FY${yi.year}`, isPartYear: yi.isPartYear || false, months: yi.months || 12 })))
+      } else if (p.years) {
         setFyConfigs(p.years.map((yr: string) => ({ year: yr, label: `FY${yr}`, isPartYear: false, months: 12 })))
       }
       setProcessingMsg(`Parsed successfully: ${p.plItems?.length || 0} P&L items, ${p.bsItems?.length || 0} balance sheet items across ${p.years?.length || 0} years. Review below.`)
@@ -651,7 +668,8 @@ CRITICAL RULES:
       const payload = {
         engagement, years, ebitdaByYear, normItems, normalisedEbitdaByYear, weights, fme,
         riskFactors, compositeScoreLow, compositeScoreHigh, multipleLow, multipleHigh,
-        valuation, bsItems: bsItems.map(b => ({ ...b })), sensitivity, industryAnalysis, discounts, aiWeightReasoning
+        valuation, bsItems: bsItems.map(b => ({ ...b })), sensitivity, industryAnalysis, discounts, aiWeightReasoning,
+        forecastYears, allYearsForWeighting
       }
       const res = await fetch('/api/valuation-report', {
         method: 'POST',
@@ -674,7 +692,7 @@ CRITICAL RULES:
       setProcessingMsg(`Error generating report: ${err.message}`)
     }
     setIsProcessing(false)
-  }, [engagement, years, ebitdaByYear, normItems, normalisedEbitdaByYear, weights, fme, riskFactors, compositeScoreLow, compositeScoreHigh, multipleLow, multipleHigh, valuation, bsItems, sensitivity, industryAnalysis, discounts, aiWeightReasoning])
+  }, [engagement, years, ebitdaByYear, normItems, normalisedEbitdaByYear, weights, fme, riskFactors, compositeScoreLow, compositeScoreHigh, multipleLow, multipleHigh, valuation, bsItems, sensitivity, industryAnalysis, discounts, aiWeightReasoning, forecastYears, allYearsForWeighting])
 
   const addFY = useCallback(() => {
     const next = fyConfigs.length > 0 ? String(Math.max(...fyConfigs.map(f => parseInt(f.year))) + 1) : String(new Date().getFullYear())
@@ -700,16 +718,16 @@ CRITICAL RULES:
 
   const removePLItem = useCallback((id: string) => { setPlItems(prev => prev.filter(i => i.id !== id)) }, [])
 
-  const initWeights = useCallback(() => {
-    if (weights.length === 0 && years.length > 0) {
-      const n = years.length
-      const w = years.map((yr, i) => ({ year: yr, weight: Math.round(((n - i) / ((n * (n + 1)) / 2)) * 100) }))
-      // Adjust to sum to 100
+  const initWeights = useCallback((force?: boolean) => {
+    if ((force || weights.length === 0) && allYearsForWeighting.length > 0) {
+      const yrs = allYearsForWeighting
+      const n = yrs.length
+      const w = yrs.map((yr, i) => ({ year: yr, weight: Math.round(((n - i) / ((n * (n + 1)) / 2)) * 100) }))
       const sum = w.reduce((s, x) => s + x.weight, 0)
       if (sum !== 100 && w.length > 0) w[0].weight += (100 - sum)
       setWeights(w)
     }
-  }, [years, weights.length])
+  }, [allYearsForWeighting, weights.length])
 
   // ── Validation ────────────────────────────────────────────────────────────
   const step1Valid = engagement.businessName.trim() !== '' && engagement.industrySector !== '' && engagement.valuationDate !== '' && engagement.businessDescription.trim().length > 20
@@ -845,15 +863,24 @@ CRITICAL RULES:
         {step === 2 && (<div className="space-y-6">
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Upload Financial Statements <HelpBtn onClick={m('how-to-upload')} label="How to upload" /></h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="border-2 border-dashed border-[#2E75B6] rounded-xl p-6 bg-blue-50/30 text-center hover:bg-blue-50/60 transition cursor-pointer"
                 onDragOver={preventDefaults} onDragEnter={preventDefaults} onDrop={e => handleDrop(e, 'financial')}
                 onClick={() => (document.getElementById('file-financial') as HTMLInputElement)?.click()}>
                 <p className="text-2xl mb-2">📄</p>
-                <p className="text-sm font-semibold text-[#1F4E79] mb-1">Financial Statements</p>
+                <p className="text-sm font-semibold text-[#1F4E79] mb-1">Full Year Statements</p>
                 <p className="text-[10px] text-gray-500 mb-2">Drag &amp; drop PDF files here, or click to browse</p>
-                <p className="text-[10px] text-gray-400">P&amp;L, Balance Sheet, Notes — one combined PDF or separate files</p>
+                <p className="text-[10px] text-gray-400">Complete annual P&amp;L, Balance Sheet, Notes</p>
                 <input id="file-financial" type="file" accept=".pdf,.xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'financial')} className="hidden" />
+              </div>
+              <div className="border-2 border-dashed border-amber-300 rounded-xl p-6 bg-amber-50/30 text-center hover:bg-amber-50/60 transition cursor-pointer"
+                onDragOver={preventDefaults} onDragEnter={preventDefaults} onDrop={e => handleDrop(e, 'partyear')}
+                onClick={() => (document.getElementById('file-partyear') as HTMLInputElement)?.click()}>
+                <p className="text-2xl mb-2">📊</p>
+                <p className="text-sm font-semibold text-[#1F4E79] mb-1">Part-Year / YTD (Optional)</p>
+                <p className="text-[10px] text-gray-500 mb-2">Current year-to-date P&amp;L and Balance Sheet</p>
+                <p className="text-[10px] text-gray-400">e.g., Jul–Mar management accounts for the current FY</p>
+                <input id="file-partyear" type="file" accept=".pdf,.xlsx,.xls,.csv" multiple onChange={e => handleFileUpload(e, 'partyear')} className="hidden" />
               </div>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-[#2E75B6] hover:bg-blue-50/20 transition cursor-pointer"
                 onDragOver={preventDefaults} onDragEnter={preventDefaults} onDrop={e => handleDrop(e, 'gl')}
@@ -869,7 +896,7 @@ CRITICAL RULES:
               <div className="mb-3">
                 {uploadedFiles.map((f,i) => (
                   <div key={i} className="flex items-center gap-2 text-xs bg-gray-50 rounded px-3 py-1 mb-1">
-                    <span className="font-medium">{f.name}</span><span className="text-gray-400">({f.type === 'financial' ? 'Financial Statements' : 'General Ledger'})</span>
+                    <span className="font-medium">{f.name}</span><span className="text-gray-400">({f.type === 'financial' ? 'Full Year' : f.type === 'partyear' ? 'Part-Year / YTD' : 'General Ledger'})</span>
                     <button onClick={() => setUploadedFiles(p => p.filter((_,j) => j!==i))} className="ml-auto text-red-400">✕</button>
                   </div>
                 ))}
@@ -965,6 +992,47 @@ CRITICAL RULES:
               </table>
             </div>
           </div>
+
+          {/* Forecast Years */}
+          <div className={sc}>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-2">Forecast / Projected Years (Optional)</h2>
+            <p className="text-xs text-gray-500 mb-3">If you have knowledge of significant future changes — such as a new major contract, expansion, loss of a customer, or structural change — you can add up to 2 forecast years. These will be available as additional years when weighting the FME in Step 5.</p>
+            
+            {forecastYears.map((fy, i) => (
+              <div key={i} className="mb-4 p-4 rounded-xl border border-amber-200 bg-amber-50/40">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-700">Year:</label>
+                    <input type="text" className="w-20 text-sm border rounded px-2 py-1 bg-white" placeholder="e.g. 2027" value={fy.year} onChange={e => setForecastYears(p => p.map((f, j) => j===i ? {...f, year: e.target.value} : f))} />
+                  </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <label className="text-sm font-semibold text-gray-700">Projected EBITDA ($):</label>
+                    <input type="number" className="w-36 text-sm border rounded px-2 py-1 bg-white" placeholder="e.g. 800000" value={fy.ebitda||''} onChange={e => setForecastYears(p => p.map((f, j) => j===i ? {...f, ebitda: parseFloat(e.target.value)||0} : f))} />
+                  </div>
+                  <button onClick={() => setForecastYears(p => p.filter((_, j) => j!==i))} className="text-red-400 hover:text-red-600 text-sm">✕ Remove</button>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Explanation (required) — describe what is changing and why you expect this level of earnings:</label>
+                  <textarea className="w-full text-xs border rounded px-3 py-2 bg-white resize-y" rows={3} placeholder="e.g., We have signed a 3-year contract with ABC Corp commencing January 2027 worth $2M p.a. in revenue at approximately 30% margin. This will add approximately $600k to EBITDA. Existing operations are expected to continue at current levels..." value={fy.explanation} onChange={e => setForecastYears(p => p.map((f, j) => j===i ? {...f, explanation: e.target.value} : f))} />
+                  {fy.explanation.trim().length < 50 && <p className="text-[10px] text-amber-600 mt-1">Please provide a detailed explanation (at least 50 characters). This will be included in the valuation report.</p>}
+                </div>
+              </div>
+            ))}
+
+            {forecastYears.length < 2 && (
+              <button className={bs + " text-xs"} onClick={() => {
+                const nextYr = years.length > 0 ? String(Math.max(...years.map(y => parseInt(y)), ...forecastYears.map(f => parseInt(f.year) || 0)) + 1) : String(new Date().getFullYear() + 1)
+                setForecastYears(p => [...p, { year: nextYr, ebitda: 0, explanation: '' }])
+              }}>
+                + Add Forecast Year ({2 - forecastYears.length} remaining)
+              </button>
+            )}
+
+            {forecastYears.length > 0 && (
+              <p className="text-[10px] text-amber-700 mt-2 bg-amber-50 p-2 rounded border border-amber-200">Forecast years will appear in the weighting step alongside historical years. You should weight them according to your confidence in the projections. The explanations you provide will be included in the valuation report.</p>
+            )}
+          </div>
+
           <div className="flex justify-between">
             <button className={bs} onClick={() => setStepAndScroll(2)}>← Back</button>
             <button className={bp} onClick={() => { markComplete(3); setStepAndScroll(4) }}>Confirm & Continue →</button>
@@ -1294,43 +1362,54 @@ CRITICAL RULES:
             
             {/* EBITDA bar visual */}
             <div className="flex items-end gap-4 mb-6 h-32">
-              {years.map(yr => {
+              {allYearsForWeighting.map(yr => {
                 const val = normalisedEbitdaByYear[yr] || 0
-                const maxVal = Math.max(...years.map(y => Math.abs(normalisedEbitdaByYear[y]||0)), 1)
+                const maxVal = Math.max(...allYearsForWeighting.map(y => Math.abs(normalisedEbitdaByYear[y]||0)), 1)
                 const h = Math.max(Math.abs(val) / maxVal * 100, 4)
+                const isForecast = forecastYears.some(f => f.year === yr)
+                const isPartYear = fyConfigs.find(f => f.year === yr)?.isPartYear
                 return (
                   <div key={yr} className="flex-1 flex flex-col items-center">
-                    <span className={`text-xs font-bold mb-1 ${val < 0 ? 'text-red-600' : 'text-[#1F4E79]'}`}>{fmtK(val)}</span>
-                    <div className={`w-full rounded-t-lg ${val < 0 ? 'bg-red-400' : 'bg-[#2E75B6]'}`} style={{height: `${h}%`}} />
-                    <span className="text-[10px] text-gray-500 mt-1">FY{yr}</span>
+                    <span className={`text-xs font-bold mb-1 ${val < 0 ? 'text-red-600' : isForecast ? 'text-amber-600' : 'text-[#1F4E79]'}`}>{fmtK(val)}</span>
+                    <div className={`w-full rounded-t-lg ${val < 0 ? 'bg-red-400' : isForecast ? 'bg-amber-400 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(255,255,255,0.3)_4px,rgba(255,255,255,0.3)_8px)]' : 'bg-[#2E75B6]'}`} style={{height: `${h}%`}} />
+                    <span className={`text-[10px] mt-1 ${isForecast ? 'text-amber-600 font-semibold' : 'text-gray-500'}`}>
+                      FY{yr}{isForecast ? ' ⓕ' : isPartYear ? ` (${fyConfigs.find(f => f.year === yr)?.months}m)` : ''}
+                    </span>
                   </div>
                 )
               })}
             </div>
+
+            {forecastYears.length > 0 && (
+              <p className="text-[10px] text-amber-600 mb-3">ⓕ = Forecast year (shown with hatched bars). Weight these according to your confidence in the projections.</p>
+            )}
 
             {/* Context input */}
             <div className="mb-4">
               <label className={lbl}>Context for any unusual years</label>
               <textarea className={ta} rows={3} value={weightContext} onChange={e => setWeightContext(e.target.value)} placeholder="e.g. FY2023 EBITDA was lower because we lost a major customer who has since been replaced..." />
               <button className={bp+" mt-2"} onClick={analyseWeighting} disabled={isProcessing}>{isProcessing ? '⏳ Working...' : 'Weighting Analysis'}</button>
+              <button className={bs+" mt-2 ml-2 text-xs"} onClick={() => initWeights(true)}>↻ Reset Weights to Default</button>
             </div>
 
-            {aiWeightReasoning && <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4"><p className="text-xs text-blue-800 font-medium mb-1">AI Recommendation:</p><p className="text-xs text-blue-700">{aiWeightReasoning}</p></div>}
+            {aiWeightReasoning && <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4"><p className="text-xs text-blue-800 font-medium mb-1">Recommendation:</p><p className="text-xs text-blue-700">{aiWeightReasoning}</p></div>}
 
             {/* Weight sliders */}
             <div className="space-y-3">
-              {weights.map(w => (
-                <div key={w.year} className="flex items-center gap-4">
-                  <span className="w-16 text-sm font-bold text-[#1F4E79]">FY{w.year}</span>
+              {weights.map(w => {
+                const isForecast = forecastYears.some(f => f.year === w.year)
+                return (
+                <div key={w.year} className={`flex items-center gap-4 ${isForecast ? 'bg-amber-50 rounded-lg px-2 py-1 border border-amber-200' : ''}`}>
+                  <span className={`w-16 text-sm font-bold ${isForecast ? 'text-amber-700' : 'text-[#1F4E79]'}`}>FY{w.year}{isForecast ? ' ⓕ' : ''}</span>
                   <span className="w-24 text-xs text-gray-600 text-right">{fmt(normalisedEbitdaByYear[w.year]||0)}</span>
-                  <input type="range" className="flex-1" min={0} max={100} value={w.weight} onChange={e => {
+                  <input type="range" className={`flex-1 ${isForecast ? 'accent-amber-500' : ''}`} min={0} max={100} value={w.weight} onChange={e => {
                     const newW = parseInt(e.target.value)
                     setWeights(prev => prev.map(pw => pw.year===w.year?{...pw,weight:newW}:pw))
                   }} />
                   <input type="number" className="w-16 text-xs text-center border rounded px-1 py-0.5" value={w.weight} onChange={e => setWeights(prev => prev.map(pw => pw.year===w.year?{...pw,weight:parseInt(e.target.value)||0}:pw))} />
                   <span className="text-xs text-gray-400">%</span>
                 </div>
-              ))}
+              )})}
               <div className="flex items-center gap-4 pt-2 border-t">
                 <span className="w-16 text-sm font-bold">Total</span>
                 <span className="w-24"></span>
@@ -1338,6 +1417,18 @@ CRITICAL RULES:
                 <span className={`text-sm font-bold ${weights.reduce((s,w) => s+w.weight,0) === 100 ? 'text-emerald-600' : 'text-red-600'}`}>{weights.reduce((s,w) => s+w.weight,0)}%</span>
               </div>
             </div>
+
+            {/* Forecast year explanations */}
+            {forecastYears.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {forecastYears.map(fy => (
+                  <div key={fy.year} className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <p className="text-xs font-semibold text-amber-800">FY{fy.year} Forecast Basis ({fmt(fy.ebitda)} projected EBITDA):</p>
+                    <p className="text-xs text-amber-700 mt-1">{fy.explanation || 'No explanation provided.'}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-6 p-4 rounded-xl bg-[#1F4E79] text-white text-center">
               <p className="text-sm">Future Maintainable Earnings (FME)</p>
@@ -1361,13 +1452,15 @@ CRITICAL RULES:
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-[#F0F4F8] border border-[#2E75B6] mb-2">
                 <p className="text-xs text-[#1F4E79] font-semibold">How to score each factor:</p>
-                <p className="text-xs text-gray-600 mt-1">Drag the two thumbs on each slider to set a risk range. The <strong className="text-emerald-700">green thumb</strong> is your optimistic (best-case) score. The <strong className="text-orange-700">orange thumb</strong> is your conservative (cautious) score. The shaded area between them is the range of uncertainty.</p>
+                <p className="text-xs text-gray-600 mt-1">Each factor has two draggable thumbs on a single slider. The <strong className="text-orange-700">orange thumb</strong> (left) is your conservative, cautious view — &quot;at worst, how risky is this?&quot;  The <strong className="text-emerald-700">green thumb</strong> (right) is your optimistic, best-case view — &quot;at best, how risky is this?&quot;</p>
+                <p className="text-xs text-gray-600 mt-1">Drag each thumb to the appropriate position. Moving both thumbs to the <strong>right</strong> means lower risk (higher value). Moving both to the <strong>left</strong> means higher risk (lower value). The gap between them is your range of uncertainty.</p>
               </div>
 
 
               {riskFactors.map(f => {
-                const pctLow = f.scoreLow / 10 * 100
-                const pctHigh = f.scoreHigh / 10 * 100
+                // Visual positions: reversed so left=high risk, right=low risk
+                const vizHigh = (10 - f.scoreHigh) / 10 * 100 // conservative (orange) - further left
+                const vizLow = (10 - f.scoreLow) / 10 * 100   // optimistic (green) - further right
                 return (
                 <div key={f.id} className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
                   <p className="font-bold text-sm text-[#1F4E79] mb-1">{f.name}</p>
@@ -1376,28 +1469,28 @@ CRITICAL RULES:
                   
                   {/* Score display */}
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Optimistic: {f.scoreLow}</span>
-                    <span className="text-xs text-gray-400">Drag thumbs to adjust range</span>
-                    <span className="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded">Conservative: {f.scoreHigh}</span>
+                    <span className="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded">Conservative: {f.scoreHigh}/10</span>
+                    <span className="text-xs text-gray-400">← drag thumbs →</span>
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Optimistic: {f.scoreLow}/10</span>
                   </div>
 
-                  {/* Dual-thumb slider */}
-                  <div className="range-track">
+                  {/* Dual-thumb slider - reversed: left=high risk, right=low risk */}
+                  <div className="range-track" style={{direction: 'rtl'}}>
                     {/* Track background */}
-                    <div className="absolute top-[11px] left-0 right-0 h-1.5 rounded-full bg-gray-200" />
+                    <div className="absolute top-[11px] left-0 right-0 h-1.5 rounded-full bg-gradient-to-r from-red-200 via-amber-100 to-emerald-200" />
                     {/* Filled range between thumbs */}
-                    <div className="range-fill bg-gradient-to-r from-emerald-400 to-orange-400 opacity-40" style={{ left: `${pctLow}%`, width: `${pctHigh - pctLow}%` }} />
-                    {/* Low thumb (green) */}
-                    <input type="range" className="range-low" min={0} max={10} step={0.5} value={f.scoreLow}
-                      onChange={e => { const v = parseFloat(e.target.value); setRiskFactors(p => p.map(rf => rf.id===f.id ? {...rf, scoreLow: v, scoreHigh: Math.max(rf.scoreHigh, v)} : rf)) }} />
-                    {/* High thumb (orange) */}
+                    <div className="range-fill bg-gradient-to-r from-orange-400 to-emerald-400 opacity-50" style={{ left: `${vizHigh}%`, width: `${vizLow - vizHigh}%` }} />
+                    {/* Conservative thumb (orange) - higher score, appears left in reversed view */}
                     <input type="range" className="range-high" min={0} max={10} step={0.5} value={f.scoreHigh}
                       onChange={e => { const v = parseFloat(e.target.value); setRiskFactors(p => p.map(rf => rf.id===f.id ? {...rf, scoreHigh: v, scoreLow: Math.min(rf.scoreLow, v)} : rf)) }} />
+                    {/* Optimistic thumb (green) - lower score, appears right in reversed view */}
+                    <input type="range" className="range-low" min={0} max={10} step={0.5} value={f.scoreLow}
+                      onChange={e => { const v = parseFloat(e.target.value); setRiskFactors(p => p.map(rf => rf.id===f.id ? {...rf, scoreLow: v, scoreHigh: Math.max(rf.scoreHigh, v)} : rf)) }} />
                   </div>
 
-                  {/* Scale labels */}
-                  <div className="flex justify-between text-[9px] text-gray-400 mt-0.5 px-1">
-                    <span>0 — Low risk</span><span>5 — Moderate</span><span>10 — High risk</span>
+                  {/* Scale labels - reversed */}
+                  <div className="flex justify-between text-[9px] text-gray-400 mt-0.5 px-1" style={{direction: 'ltr'}}>
+                    <span className="text-red-400">10 — High risk</span><span>5 — Moderate</span><span className="text-emerald-500">0 — Low risk</span>
                   </div>
                 </div>
               )})}
@@ -1557,6 +1650,20 @@ CRITICAL RULES:
             </div>
           </div>
 
+          {/* Executive Summary */}
+          <div className={sc}>
+            <h2 className="text-lg font-bold text-[#1F4E79] mb-3">Executive Summary</h2>
+            <p className="text-sm text-gray-700 mb-3">We have been engaged to provide an estimate of the fair market value of the {engagement.valuationScope === 'equity' ? 'equity (shares)' : 'enterprise'} of {engagement.businessName} as at {engagement.valuationDate}, for the purpose of {engagement.purpose?.toLowerCase()}.</p>
+            <p className="text-sm text-gray-700 mb-3">Fair market value is defined as the price that would be negotiated in an open and unrestricted market between a knowledgeable, willing but not anxious buyer and a knowledgeable, willing but not anxious seller, acting at arm&apos;s length. This definition is consistent with the requirements of APES 225 Valuation Services.</p>
+            <p className="text-sm text-gray-700 mb-3">The valuation has been prepared using the Capitalisation of Future Maintainable Earnings (&quot;CFME&quot;) method, which involves: (1) determining the normalised future maintainable earnings of the business; (2) applying an appropriate capitalisation multiple to those earnings, reflecting the risk profile of the business; and (3) adjusting for balance sheet items to arrive at the {engagement.valuationScope === 'equity' ? 'equity' : 'enterprise'} value.</p>
+            <p className="text-sm text-gray-700 mb-3">Based on our analysis of the financial performance over {years.length} financial years, normalisation adjustments, and assessment of the business risk profile, we have assessed the fair market value of the {engagement.valuationScope === 'equity' ? 'equity of' : ''} {engagement.businessName} to be in the range of:</p>
+            <div className="text-center p-4 bg-[#F0F4F8] rounded-xl">
+              <p className="text-2xl font-bold text-[#1F4E79]">{engagement.valuationScope === 'equity' ? `${fmt(valuation.finalLow)} – ${fmt(valuation.finalHigh)}` : `${fmt(valuation.evLow)} – ${fmt(valuation.evHigh)}`}</p>
+              <p className="text-sm text-gray-500 mt-1">with a midpoint of {engagement.valuationScope === 'equity' ? fmt(valuation.finalMid) : fmt((valuation.evLow+valuation.evHigh)/2)}</p>
+            </div>
+            <p className="text-sm text-gray-700 mt-3">The key assumptions and methodology supporting this conclusion are set out in the sections that follow. This report should be read in its entirety, including the disclaimers and limitations.</p>
+          </div>
+
           {/* 1. Engagement Summary */}
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">1. Engagement Summary</h2>
@@ -1581,6 +1688,8 @@ CRITICAL RULES:
           {/* 2. Financial Performance */}
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">2. Historical Financial Performance</h2>
+            <p className="text-sm text-gray-700 mb-3">The following table summarises the financial performance of {engagement.businessName} over the {years.length} financial years under review. EBITDA (Earnings Before Interest, Tax, Depreciation and Amortisation) is the key metric used in this valuation as it measures the operating profitability of the business before the impact of financing decisions, tax structures, and non-cash accounting charges.</p>
+            <p className="text-sm text-gray-700 mb-4">The EBITDA figure is derived by adding back depreciation, amortisation, interest, and income tax to the reported net profit. This provides a like-for-like comparison of operating performance across years and between businesses with different capital structures.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2">Item</th>{years.map(yr => <th key={yr} className="text-right px-3 py-2">FY{yr}</th>)}</tr></thead>
@@ -1616,7 +1725,8 @@ CRITICAL RULES:
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">3. Normalisation Adjustments</h2>
             {normItems.length === 0 ? <p className="text-sm text-gray-500 italic">No normalisation adjustments were made. The reported EBITDA has been adopted as the basis for valuation.</p> : (<>
-              <p className="text-xs text-gray-500 mb-3">The following adjustments were considered to convert the reported EBITDA to a normalised basis reflecting sustainable future earnings for a hypothetical purchaser.</p>
+              <p className="text-sm text-gray-700 mb-3">Normalisation is the process of adjusting reported earnings to remove items that would not be expected to recur under new ownership, or to adjust for items that do not reflect arm&apos;s length commercial rates. The objective is to determine the sustainable level of earnings that a hypothetical purchaser could expect to generate from the business going forward.</p>
+              <p className="text-sm text-gray-700 mb-3">Adjustments fall into five categories: owner compensation (where the owner&apos;s remuneration differs from market rate), related party transactions (where dealings with associated entities are not at arm&apos;s length), personal or discretionary expenses (that benefit the owner personally rather than the business), non-recurring items (one-off events that distort ongoing profitability), and non-operating items (income or expenses unrelated to core business operations). Each adjustment below has been assessed and either accepted, rejected, or modified.</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2">Adjustment</th><th className="text-left px-2 py-2">Category</th><th className="text-left px-2 py-2">Treatment</th>{years.map(yr => <th key={yr} className="text-right px-3 py-2">FY{yr}</th>)}<th className="text-center px-2 py-2">Status</th></tr></thead>
@@ -1646,7 +1756,8 @@ CRITICAL RULES:
           {/* 4. FME Derivation */}
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">4. Future Maintainable Earnings (FME)</h2>
-            <p className="text-xs text-gray-500 mb-3">The normalised EBITDA for each year is weighted to derive a single earnings figure representing the sustainable future earning capacity of the business.</p>
+            <p className="text-sm text-gray-700 mb-3">The Future Maintainable Earnings (&quot;FME&quot;) represents the level of annual earnings that the business can reasonably be expected to generate on an ongoing basis. It is the single most important number in this valuation — the FME is multiplied by the capitalisation multiple to determine the enterprise value.</p>
+            <p className="text-sm text-gray-700 mb-3">Rather than relying on any single year (which may be unrepresentative), we derive the FME as a weighted average of normalised EBITDA across {years.length} years. More recent years typically receive greater weight as they better reflect current operating conditions, market dynamics, and management practices. Where a particular year was affected by unusual circumstances, its weight may be reduced with appropriate justification.</p>
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-100"><th className="text-left px-3 py-2">Year</th><th className="text-right px-3 py-2">Normalised EBITDA</th><th className="text-right px-3 py-2">Weight</th><th className="text-right px-3 py-2">Contribution</th></tr></thead>
               <tbody>
@@ -1657,12 +1768,25 @@ CRITICAL RULES:
               </tbody>
             </table>
             {aiWeightReasoning && (<div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200"><p className="text-xs font-semibold text-blue-700 mb-1">Weighting Rationale</p><p className="text-xs text-blue-800">{aiWeightReasoning}</p></div>)}
+            {forecastYears.length > 0 && (
+              <div className="mt-3">
+                <p className="text-sm font-semibold text-amber-800 mb-2">Forecast Year Assumptions</p>
+                <p className="text-sm text-gray-700 mb-2">The following projected years have been included in the FME analysis based on management&apos;s expectations of future performance. These projections reflect anticipated changes to the business and have been weighted according to our confidence in their likelihood of being achieved.</p>
+                {forecastYears.map(fy => (
+                  <div key={fy.year} className="p-3 bg-amber-50 rounded-lg border border-amber-200 mb-2">
+                    <p className="text-xs font-bold text-amber-800">FY{fy.year} — Projected EBITDA: {fmt(fy.ebitda)}</p>
+                    <p className="text-xs text-amber-700 mt-1">{fy.explanation}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 5. Risk Analysis & Multiple Derivation */}
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">5. Risk Assessment & Multiple Derivation</h2>
-            <p className="text-xs text-gray-500 mb-3">Six risk factors are assessed to derive an appropriate EBITDA capitalisation multiple. Each factor is scored 0 (lowest risk) to 10 (highest risk).</p>
+            <p className="text-sm text-gray-700 mb-3">The capitalisation multiple reflects the risk and return expectations that a hypothetical purchaser would apply to the business. A higher multiple indicates lower perceived risk (the buyer is willing to pay more per dollar of earnings), while a lower multiple indicates higher risk. For Australian small and medium enterprises, EBITDA multiples typically range from 1x to 6x.</p>
+            <p className="text-sm text-gray-700 mb-3">We have assessed six key risk factors, each scored from 0 (lowest risk) to 10 (highest risk). For each factor, we provide both an optimistic (best-case) and conservative (cautious) assessment to establish a range. The composite risk score is then mapped to a capitalisation multiple using a linear interpolation model calibrated for Australian SMEs.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="bg-[#1F4E79] text-white"><th className="text-left px-3 py-2 w-[25%]">Risk Factor</th><th className="text-center px-2 py-2 w-[8%]">Low</th><th className="text-center px-2 py-2 w-[8%]">High</th><th className="text-left px-3 py-2">Assessment</th></tr></thead>
@@ -1689,7 +1813,9 @@ CRITICAL RULES:
           {engagement.valuationScope === 'equity' && (
             <div className={sc}>
               <h2 className="text-lg font-bold text-[#1F4E79] mb-3">6. Balance Sheet Adjustments & Equity Value</h2>
-              <p className="text-xs text-gray-500 mb-3">Each balance sheet item is classified to determine its treatment. Operating fixed assets are within the enterprise value. All other items are separately added or deducted.</p>
+              <p className="text-sm text-gray-700 mb-3">The enterprise value determined above represents the value of the business&apos;s earning capacity — essentially, the value of the goodwill and the operating fixed assets needed to generate that income. However, when purchasing the shares of a company, the buyer also acquires all other assets and assumes all other liabilities on the balance sheet.</p>
+              <p className="text-sm text-gray-700 mb-3">To arrive at the equity (share) value, we classify each balance sheet item and determine whether it is: (a) already included within the enterprise value (operating fixed assets such as plant and equipment); (b) a transferring asset that the buyer receives in addition to the earning capacity (cash, debtors, inventory); (c) a transferring liability that the buyer inherits (creditors, provisions, tax payable); (d) a surplus asset not needed for operations; or (e) interest-bearing debt to be repaid on settlement.</p>
+              <p className="text-sm text-gray-700 mb-4">The net balance sheet adjustment is then added to (or deducted from) the enterprise value to determine the equity value of the shares. This bridge from enterprise value to equity value is set out below, with each balance sheet item individually identified.</p>
               {bsItems.filter(b => b.classification === 'in_ev').length > 0 && (
                 <div className="mb-3 p-3 bg-gray-50 rounded-lg border"><p className="text-xs font-semibold text-gray-600 mb-1">🔧 Operating Fixed Assets (within enterprise value — reference only)</p><div className="flex flex-wrap gap-3">{bsItems.filter(b => b.classification === 'in_ev').map(b => (<span key={b.id} className="text-xs text-gray-500">{b.name}: {fmt(b.adjustedValue || (b.amounts[years[0]]||0))}</span>))}</div></div>
               )}
@@ -1728,6 +1854,7 @@ CRITICAL RULES:
           {/* 7. Cross-Checks */}
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">{engagement.valuationScope === 'equity' ? '7' : '6'}. Cross-Checks & Reasonableness</h2>
+            <p className="text-sm text-gray-700 mb-3">As a reasonableness check on our valuation, we have considered two alternative reference points. The implied revenue multiple indicates how the valuation compares to the business&apos;s top-line revenue — a useful benchmark that can be compared against industry transaction data. The equipment floor value represents the minimum realisable value of the tangible operating assets, serving as a floor below which the enterprise value should not normally fall for a viable going concern.</p>
             <div className="grid grid-cols-2 gap-4 mb-3">
               <div className="p-4 bg-[#F0F4F8] rounded-xl border"><p className="text-[10px] text-gray-500 mb-1">Implied Revenue Multiple</p><p className="text-lg font-bold text-[#1F4E79]">{valuation.impliedRevMultLow.toFixed(2)}x – {valuation.impliedRevMultHigh.toFixed(2)}x</p><p className="text-xs text-gray-500 mt-1">Based on revenue of {fmt(ebitdaByYear[years[0]]?.revenue||0)}</p></div>
               <div className="p-4 bg-[#F0F4F8] rounded-xl border"><p className="text-[10px] text-gray-500 mb-1">Equipment Floor Value</p><p className="text-lg font-bold text-[#1F4E79]">{fmt(valuation.equipmentFloor)}</p><p className="text-xs text-gray-500 mt-1">Realisable value of operating fixed assets</p></div>
@@ -1738,7 +1865,8 @@ CRITICAL RULES:
           {/* 8. Sensitivity Analysis */}
           <div className={sc}>
             <h2 className="text-lg font-bold text-[#1F4E79] mb-3">{engagement.valuationScope === 'equity' ? '8' : '7'}. Sensitivity Analysis</h2>
-            <p className="text-xs text-gray-500 mb-3">Enterprise value under different FME (±15%) and multiple assumptions. Highlighted cell is the base case.</p>
+            <p className="text-sm text-gray-700 mb-3">Valuation inherently involves judgement and estimation. The sensitivity matrix below demonstrates how the enterprise value changes under different assumptions for FME (±15% from base) and the capitalisation multiple (low, mid, and high). This analysis helps both parties understand the range of reasonable outcomes and the key variables that drive value.</p>
+            <p className="text-sm text-gray-700 mb-3">The highlighted cell represents the base case (100% of FME at the midpoint multiple). The top-left cell represents the most conservative scenario (lower earnings at the lowest multiple), while the bottom-right represents the most optimistic (higher earnings at the highest multiple).</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-[#1F4E79] text-white"><th className="px-4 py-2.5 text-left">FME Scenario</th><th className="text-right px-4 py-2.5">{multipleLow.toFixed(1)}x (Low)</th><th className="text-right px-4 py-2.5">{((multipleLow+multipleHigh)/2).toFixed(1)}x (Mid)</th><th className="text-right px-4 py-2.5">{multipleHigh.toFixed(1)}x (High)</th></tr></thead>
